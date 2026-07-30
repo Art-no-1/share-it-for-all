@@ -2244,8 +2244,11 @@
       canvas.height = h;
       ctx.drawImage(img, 0, 0, w, h);
 
-      // スタンプ帯を描画
-      drawStamp(ctx, w, h);
+      // スタンプ帯を描画（加工済み写真には重ねない）
+      const isAlreadyStamped = imgData.file_name.startsWith('shareit_') || imgData.file_name.startsWith('edited_');
+      if (!isAlreadyStamped) {
+        drawStamp(ctx, w, h);
+      }
 
       // カウンターとファイル名を更新
       const counter = document.getElementById('viewer-counter');
