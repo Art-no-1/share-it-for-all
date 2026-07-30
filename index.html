@@ -1931,8 +1931,8 @@
         } catch(e) {}
       }
 
-      // 大きめの半透明帯（画像高さの12%、最低60px）
-      const bandHeight = Math.max(60, Math.floor(height * 0.12));
+      // 大きめの半透明帯（画像高さの10%、最低50px、最大100px）
+      const bandHeight = Math.max(50, Math.min(100, Math.floor(height * 0.10)));
       
       // グラデーション帯（より洒落た印象）
       const gradient = ctx.createLinearGradient(0, height - bandHeight, 0, height);
@@ -1942,18 +1942,18 @@
       ctx.fillStyle = gradient;
       ctx.fillRect(0, height - bandHeight, width, bandHeight);
 
-      // メインテキスト（大きい斜体）
-      const mainFontSize = Math.max(36, Math.min(80, Math.floor(width * 0.08)));
+      // メインテキスト（帯の高さの55%をフォントサイズに）
+      const mainFontSize = Math.max(20, Math.min(48, Math.floor(bandHeight * 0.55)));
       ctx.font = `italic bold ${mainFontSize}px "Georgia", "Times New Roman", serif`;
       ctx.fillStyle = '#FFFFFF';
       ctx.textAlign = 'center';
       ctx.textBaseline = 'middle';
       ctx.shadowColor = 'rgba(0,0,0,0.8)';
       ctx.shadowBlur = 6;
-      ctx.fillText(`Share it ✦ ${keyword}`, width / 2, height - bandHeight * 0.55);
+      ctx.fillText(`Share it ✦ ${keyword}`, width / 2, height - bandHeight * 0.58);
 
-      // サブテキスト（日付）
-      const subFontSize = Math.max(14, Math.floor(mainFontSize * 0.4));
+      // サブテキスト（メインの40%）
+      const subFontSize = Math.max(10, Math.floor(mainFontSize * 0.4));
       ctx.font = `italic ${subFontSize}px "Georgia", serif`;
       ctx.fillStyle = 'rgba(255,255,255,0.75)';
       ctx.shadowBlur = 3;
