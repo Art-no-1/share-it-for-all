@@ -482,6 +482,155 @@
       padding: 8px;
       background: rgba(0,0,0,0.8);
     }
+
+    /* リアクション */
+    .reaction-bar {
+      display: flex;
+      gap: 4px;
+      padding: 10px 8px;
+      background: rgba(0,0,0,0.85);
+      justify-content: center;
+      flex-wrap: wrap;
+    }
+    .reaction-emoji {
+      width: 40px; height: 40px;
+      border-radius: 50%;
+      border: none;
+      background: rgba(255,255,255,0.1);
+      font-size: 20px;
+      cursor: pointer;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      transition: transform 0.15s, background 0.15s;
+    }
+    .reaction-emoji:active { transform: scale(1.3); background: rgba(255,255,255,0.25); }
+    .reaction-emoji .count {
+      position: absolute;
+      bottom: -2px; right: -2px;
+      background: var(--primary);
+      color: #FFF;
+      font-size: 9px;
+      border-radius: 8px;
+      padding: 1px 4px;
+      min-width: 14px;
+      text-align: center;
+    }
+    .reaction-emoji-wrap {
+      position: relative;
+      display: inline-flex;
+    }
+    .comment-btn {
+      min-width: 44px; height: 40px;
+      border-radius: 20px;
+      border: 1px solid rgba(255,255,255,0.3);
+      background: rgba(255,255,255,0.08);
+      color: #FFF;
+      font-size: 13px;
+      cursor: pointer;
+      padding: 0 12px;
+    }
+
+    /* ポップアップリアクション（写真の周り） */
+    .reaction-bubble {
+      position: absolute;
+      background: #FFF;
+      border-radius: 16px;
+      padding: 4px 8px;
+      font-size: 12px;
+      box-shadow: 0 2px 8px rgba(0,0,0,0.2);
+      animation: bubblePop 0.4s ease-out;
+      white-space: nowrap;
+      max-width: 160px;
+      overflow: hidden;
+      text-overflow: ellipsis;
+      z-index: 5;
+    }
+    .reaction-bubble::after {
+      content: '';
+      position: absolute;
+      width: 8px; height: 8px;
+      background: #FFF;
+      transform: rotate(45deg);
+      bottom: -4px;
+      left: 20px;
+      box-shadow: 2px 2px 4px rgba(0,0,0,0.1);
+    }
+    .reaction-bubble .bubble-emoji { font-size: 14px; }
+    .reaction-bubble .bubble-text { color: #333; margin-left: 4px; }
+    .reaction-bubble .bubble-name { color: #999; font-size: 10px; margin-left: 4px; }
+    @keyframes bubblePop {
+      0% { transform: scale(0) translateY(10px); opacity: 0; }
+      60% { transform: scale(1.1) translateY(-2px); opacity: 1; }
+      100% { transform: scale(1) translateY(0); opacity: 1; }
+    }
+
+    /* コメント入力モーダル */
+    .comment-modal {
+      position: fixed;
+      bottom: 0; left: 0; right: 0;
+      background: var(--card-bg);
+      border-radius: 16px 16px 0 0;
+      padding: 20px;
+      z-index: 400;
+      box-shadow: 0 -4px 20px rgba(0,0,0,0.3);
+      animation: slideUp 0.3s ease-out;
+    }
+    @keyframes slideUp {
+      from { transform: translateY(100%); }
+      to { transform: translateY(0); }
+    }
+    .comment-modal-backdrop {
+      position: fixed;
+      top: 0; left: 0; right: 0; bottom: 0;
+      background: rgba(0,0,0,0.4);
+      z-index: 399;
+    }
+    .comment-input {
+      width: 100%;
+      min-height: 44px;
+      border: 2px solid var(--border);
+      border-radius: 8px;
+      padding: 10px;
+      font-size: 16px;
+      resize: none;
+      margin-bottom: 12px;
+    }
+    .name-toggle {
+      display: flex;
+      align-items: center;
+      gap: 8px;
+      margin-bottom: 12px;
+      font-size: 14px;
+    }
+    .name-toggle input[type="text"] {
+      flex: 1;
+      min-height: 36px;
+      padding: 6px 10px;
+      border: 2px solid var(--border);
+      border-radius: 6px;
+      font-size: 14px;
+    }
+    .toggle-switch {
+      position: relative;
+      width: 44px; height: 24px;
+      background: #CCC;
+      border-radius: 12px;
+      cursor: pointer;
+      transition: background 0.2s;
+      flex-shrink: 0;
+    }
+    .toggle-switch.active { background: var(--primary); }
+    .toggle-switch::after {
+      content: '';
+      position: absolute;
+      width: 20px; height: 20px;
+      background: #FFF;
+      border-radius: 50%;
+      top: 2px; left: 2px;
+      transition: transform 0.2s;
+    }
+    .toggle-switch.active::after { transform: translateX(20px); }
   </style>
 </head>
 <body>
@@ -1799,11 +1948,12 @@
         </div>
         <div class="viewer-body" id="viewer-body">
           <button class="viewer-nav prev" onclick="viewerPrev()">‹</button>
-          <div class="viewer-img-container">
+          <div class="viewer-img-container" id="viewer-img-container">
             <canvas id="viewer-canvas"></canvas>
           </div>
           <button class="viewer-nav next" onclick="viewerNext()">›</button>
         </div>
+        <div class="reaction-bar" id="reaction-bar"></div>
         <div class="viewer-counter" id="viewer-counter"></div>
       `;
       document.body.appendChild(viewer);
@@ -1902,6 +2052,10 @@
       if (counter) counter.textContent = `${viewerState.currentIndex + 1} / ${viewerState.images.length}`;
       const fname = document.getElementById('viewer-filename');
       if (fname) fname.textContent = imgData.file_name;
+
+      // リアクション表示
+      renderReactionBar();
+      renderReactionBubbles();
     }
 
     /**
@@ -1911,6 +2065,208 @@
       const imgData = viewerState.images[viewerState.currentIndex];
       closeViewer();
       openPhotoEditor(imgData.file_id);
+    }
+
+    // ===== リアクション機能 =====
+    const REACTION_EMOJIS = ['❤️', '😂', '🔥', '😍', '👏', '🎉', '😮', '💯'];
+
+    /**
+     * リアクションデータを取得する（IndexedDB）。
+     */
+    async function getReactions(fileId) {
+      const key = `reactions_${fileId}`;
+      const stored = localStorage.getItem(key);
+      return stored ? JSON.parse(stored) : { emojis: {}, comments: [] };
+    }
+
+    /**
+     * リアクションデータを保存する。
+     */
+    function saveReactions(fileId, data) {
+      localStorage.setItem(`reactions_${fileId}`, JSON.stringify(data));
+    }
+
+    /**
+     * リアクションバーを描画する。
+     */
+    async function renderReactionBar() {
+      const bar = document.getElementById('reaction-bar');
+      if (!bar) return;
+      const imgData = viewerState.images[viewerState.currentIndex];
+      const reactions = await getReactions(imgData.file_id);
+
+      let html = '';
+      for (const emoji of REACTION_EMOJIS) {
+        const count = reactions.emojis[emoji] || 0;
+        html += `<div class="reaction-emoji-wrap">
+          <button class="reaction-emoji" onclick="addReaction('${emoji}')">${emoji}</button>
+          ${count > 0 ? `<span class="count">${count}</span>` : ''}
+        </div>`;
+      }
+      html += `<button class="comment-btn" onclick="openCommentModal()">💬 コメント</button>`;
+      bar.innerHTML = html;
+    }
+
+    /**
+     * 絵文字リアクションを追加する。
+     */
+    async function addReaction(emoji) {
+      const imgData = viewerState.images[viewerState.currentIndex];
+      const reactions = await getReactions(imgData.file_id);
+
+      if (!reactions.emojis[emoji]) reactions.emojis[emoji] = 0;
+      reactions.emojis[emoji]++;
+      saveReactions(imgData.file_id, reactions);
+
+      // アニメーション付きバブル追加
+      reactions.comments.push({
+        emoji: emoji,
+        text: '',
+        name: '',
+        time: Date.now()
+      });
+      saveReactions(imgData.file_id, reactions);
+
+      renderReactionBar();
+      renderReactionBubbles();
+    }
+
+    /**
+     * リアクションバブル（写真周り）を描画する。
+     */
+    async function renderReactionBubbles() {
+      const container = document.getElementById('viewer-img-container');
+      if (!container) return;
+
+      // 既存バブルを削除
+      container.querySelectorAll('.reaction-bubble').forEach(el => el.remove());
+
+      const imgData = viewerState.images[viewerState.currentIndex];
+      const reactions = await getReactions(imgData.file_id);
+      const comments = reactions.comments || [];
+
+      // 最新の8件を表示
+      const recent = comments.slice(-8);
+      const containerRect = container.getBoundingClientRect();
+      const w = containerRect.width;
+      const h = containerRect.height;
+
+      recent.forEach((item, i) => {
+        const bubble = document.createElement('div');
+        bubble.className = 'reaction-bubble';
+
+        // 表示内容
+        let content = `<span class="bubble-emoji">${item.emoji || '💬'}</span>`;
+        if (item.text) content += `<span class="bubble-text">${item.text}</span>`;
+        if (item.name) content += `<span class="bubble-name">— ${item.name}</span>`;
+        bubble.innerHTML = content;
+
+        // 位置をランダムに散らす（写真の周囲）
+        const positions = [
+          { top: '5%', left: '5%' },
+          { top: '10%', right: '5%' },
+          { top: '25%', left: '3%' },
+          { top: '30%', right: '3%' },
+          { top: '50%', left: '5%' },
+          { top: '55%', right: '5%' },
+          { top: '70%', left: '3%' },
+          { top: '75%', right: '3%' },
+        ];
+        const pos = positions[i % positions.length];
+        Object.assign(bubble.style, pos);
+        bubble.style.animationDelay = `${i * 0.1}s`;
+
+        container.appendChild(bubble);
+      });
+    }
+
+    /**
+     * コメント入力モーダルを開く。
+     */
+    function openCommentModal() {
+      // 背景
+      const backdrop = document.createElement('div');
+      backdrop.className = 'comment-modal-backdrop';
+      backdrop.id = 'comment-backdrop';
+      backdrop.onclick = closeCommentModal;
+      document.body.appendChild(backdrop);
+
+      // モーダル
+      const modal = document.createElement('div');
+      modal.className = 'comment-modal';
+      modal.id = 'comment-modal';
+      modal.innerHTML = `
+        <h3 style="font-size:16px; margin-bottom:12px;">💬 コメントを残す</h3>
+        <textarea class="comment-input" id="comment-text" placeholder="一言コメント..." maxlength="100"></textarea>
+        <div class="name-toggle">
+          <div class="toggle-switch" id="name-toggle" onclick="toggleNameInput()"></div>
+          <span id="name-label">無記名</span>
+          <input type="text" id="comment-name" placeholder="名前を入力" maxlength="20" style="display:none;">
+        </div>
+        <div style="display:flex; gap:8px;">
+          <button class="btn btn-primary" style="flex:1;" onclick="submitComment()">送信</button>
+          <button class="btn btn-outline" style="flex:1;" onclick="closeCommentModal()">キャンセル</button>
+        </div>
+      `;
+      document.body.appendChild(modal);
+    }
+
+    /**
+     * 記名/無記名トグル。
+     */
+    function toggleNameInput() {
+      const toggle = document.getElementById('name-toggle');
+      const nameInput = document.getElementById('comment-name');
+      const label = document.getElementById('name-label');
+
+      if (toggle.classList.contains('active')) {
+        toggle.classList.remove('active');
+        nameInput.style.display = 'none';
+        label.textContent = '無記名';
+      } else {
+        toggle.classList.add('active');
+        nameInput.style.display = 'block';
+        label.textContent = '記名';
+        nameInput.focus();
+      }
+    }
+
+    /**
+     * コメントを送信する。
+     */
+    async function submitComment() {
+      const text = document.getElementById('comment-text').value.trim();
+      if (!text) { alert('コメントを入力してください'); return; }
+
+      const nameInput = document.getElementById('comment-name');
+      const toggle = document.getElementById('name-toggle');
+      const isNamed = toggle.classList.contains('active');
+      const name = isNamed ? nameInput.value.trim() : '';
+
+      const imgData = viewerState.images[viewerState.currentIndex];
+      const reactions = await getReactions(imgData.file_id);
+
+      reactions.comments.push({
+        emoji: '💬',
+        text: text,
+        name: name || '匿名',
+        time: Date.now()
+      });
+      saveReactions(imgData.file_id, reactions);
+
+      closeCommentModal();
+      renderReactionBar();
+      renderReactionBubbles();
+    }
+
+    /**
+     * コメントモーダルを閉じる。
+     */
+    function closeCommentModal() {
+      const modal = document.getElementById('comment-modal');
+      const backdrop = document.getElementById('comment-backdrop');
+      if (modal) modal.remove();
+      if (backdrop) backdrop.remove();
     }
 
     /**
