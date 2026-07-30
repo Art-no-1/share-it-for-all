@@ -1,0 +1,2008 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+  <title>Share it for all</title>
+  <style>
+    /* リセット */
+    *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+    /* ベース */
+    :root {
+      --primary: #4A90D9;
+      --primary-dark: #357ABD;
+      --success: #5CB85C;
+      --danger: #D9534F;
+      --warning: #F0AD4E;
+      --text: #333;
+      --text-light: #666;
+      --bg: #F8F9FA;
+      --card-bg: #FFF;
+      --border: #DEE2E6;
+      --radius: 12px;
+      --tap-target: 44px;
+      --max-width: 100%;
+      --padding: 16px;
+    }
+
+    @media (prefers-color-scheme: dark) {
+      :root {
+        --text: #E8E8E8;
+        --text-light: #AAA;
+        --bg: #1A1A2E;
+        --card-bg: #16213E;
+        --border: #2A2A4A;
+      }
+    }
+
+    body {
+      font-family: -apple-system, BlinkMacSystemFont, 'Hiragino Sans', 'Hiragino Kaku Gothic ProN', sans-serif;
+      font-size: 16px;
+      line-height: 1.6;
+      color: var(--text);
+      background: var(--bg);
+      min-height: 100vh;
+      -webkit-text-size-adjust: 100%;
+    }
+
+    /* レイアウト */
+    .container {
+      max-width: var(--max-width);
+      margin: 0 auto;
+      padding: var(--padding);
+    }
+
+    @media (min-width: 768px) {
+      .container { max-width: 1024px; }
+    }
+
+    /* ヘッダー */
+    header {
+      background: var(--primary);
+      color: #FFF;
+      padding: 12px var(--padding);
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      position: sticky;
+      top: 0;
+      z-index: 100;
+    }
+
+    header h1 {
+      font-size: 18px;
+      font-weight: 700;
+    }
+
+    .help-btn {
+      width: var(--tap-target);
+      height: var(--tap-target);
+      border: none;
+      background: rgba(255,255,255,0.2);
+      color: #FFF;
+      border-radius: 50%;
+      font-size: 20px;
+      cursor: pointer;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+    }
+
+    /* カード */
+    .card {
+      background: var(--card-bg);
+      border-radius: var(--radius);
+      padding: 20px;
+      margin-bottom: 16px;
+      box-shadow: 0 2px 8px rgba(0,0,0,0.08);
+    }
+
+    /* ボタン */
+    .btn {
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      min-height: var(--tap-target);
+      padding: 12px 24px;
+      border: none;
+      border-radius: var(--radius);
+      font-size: 16px;
+      font-weight: 600;
+      cursor: pointer;
+      text-decoration: none;
+      transition: opacity 0.2s;
+      width: 100%;
+    }
+
+    .btn:active { opacity: 0.8; }
+    .btn-primary { background: var(--primary); color: #FFF; }
+    .btn-success { background: var(--success); color: #FFF; }
+    .btn-danger { background: var(--danger); color: #FFF; }
+    .btn-outline {
+      background: transparent;
+      border: 2px solid var(--primary);
+      color: var(--primary);
+    }
+    .btn:disabled { opacity: 0.5; cursor: not-allowed; }
+
+    /* フォーム */
+    .form-group { margin-bottom: 16px; }
+    .form-group label {
+      display: block;
+      font-weight: 600;
+      margin-bottom: 6px;
+      font-size: 14px;
+    }
+    .form-group input,
+    .form-group select {
+      width: 100%;
+      min-height: var(--tap-target);
+      padding: 10px 14px;
+      border: 2px solid var(--border);
+      border-radius: 8px;
+      font-size: 16px;
+      background: var(--card-bg);
+      color: var(--text);
+    }
+    .form-group input:focus,
+    .form-group select:focus {
+      outline: none;
+      border-color: var(--primary);
+    }
+
+    /* エラー */
+    .error-msg {
+      color: var(--danger);
+      font-size: 13px;
+      margin-top: 4px;
+    }
+
+    .alert {
+      padding: 12px 16px;
+      border-radius: 8px;
+      margin-bottom: 16px;
+      font-size: 14px;
+    }
+    .alert-error { background: #FDECEA; color: var(--danger); }
+    .alert-success { background: #E8F5E9; color: #2E7D32; }
+    .alert-info { background: #E3F2FD; color: #1565C0; }
+
+    /* ガイド */
+    .guide-overlay {
+      position: fixed;
+      top: 0; left: 0; right: 0; bottom: 0;
+      background: rgba(0,0,0,0.6);
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      z-index: 1000;
+      padding: var(--padding);
+    }
+    .guide-card {
+      background: var(--card-bg);
+      border-radius: var(--radius);
+      padding: 24px;
+      max-width: 360px;
+      width: 100%;
+    }
+    .guide-step {
+      display: flex;
+      align-items: flex-start;
+      gap: 12px;
+      margin-bottom: 16px;
+    }
+    .guide-step-num {
+      width: 28px; height: 28px;
+      background: var(--primary);
+      color: #FFF;
+      border-radius: 50%;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      font-size: 14px;
+      font-weight: 700;
+      flex-shrink: 0;
+    }
+
+    /* ファイル一覧 */
+    .file-grid {
+      display: grid;
+      grid-template-columns: repeat(auto-fill, minmax(100px, 1fr));
+      gap: 8px;
+      margin: 16px 0;
+    }
+    .file-item {
+      aspect-ratio: 1;
+      border-radius: 8px;
+      overflow: hidden;
+      border: 1px solid var(--border);
+      position: relative;
+      cursor: pointer;
+    }
+    .file-item img {
+      width: 100%; height: 100%;
+      object-fit: cover;
+    }
+    .file-item .file-icon {
+      width: 100%; height: 100%;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      background: #EEE;
+      font-size: 24px;
+    }
+    .file-item .file-name {
+      position: absolute;
+      bottom: 0; left: 0; right: 0;
+      background: rgba(0,0,0,0.6);
+      color: #FFF;
+      font-size: 10px;
+      padding: 2px 4px;
+      white-space: nowrap;
+      overflow: hidden;
+      text-overflow: ellipsis;
+    }
+
+    /* プログレス */
+    .progress-bar {
+      width: 100%; height: 6px;
+      background: var(--border);
+      border-radius: 3px;
+      overflow: hidden;
+      margin-top: 8px;
+    }
+    .progress-fill {
+      height: 100%;
+      background: var(--primary);
+      transition: width 0.3s;
+    }
+
+    /* ユーティリティ */
+    .text-center { text-align: center; }
+    .text-light { color: var(--text-light); }
+    .text-small { font-size: 13px; }
+    .mt-8 { margin-top: 8px; }
+    .mt-16 { margin-top: 16px; }
+    .mb-16 { margin-bottom: 16px; }
+    .gap-12 { gap: 12px; }
+    .flex-col { display: flex; flex-direction: column; }
+    .hidden { display: none !important; }
+
+    /* ローディング */
+    .spinner {
+      display: inline-block;
+      width: 24px; height: 24px;
+      border: 3px solid var(--border);
+      border-top-color: var(--primary);
+      border-radius: 50%;
+      animation: spin 0.8s linear infinite;
+    }
+    @keyframes spin { to { transform: rotate(360deg); } }
+
+    /* 残り時間バッジ */
+    .badge {
+      display: inline-block;
+      padding: 4px 10px;
+      border-radius: 12px;
+      font-size: 12px;
+      font-weight: 600;
+    }
+    .badge-warning { background: #FFF3CD; color: #856404; }
+    .badge-info { background: #D1ECF1; color: #0C5460; }
+
+    /* アニメーション無効化 */
+    @media (prefers-reduced-motion: reduce) {
+      *, *::before, *::after { animation-duration: 0.01ms !important; transition-duration: 0.01ms !important; }
+    }
+
+    /* フッター */
+    footer {
+      text-align: center;
+      padding: 16px;
+      color: var(--text-light);
+      font-size: 12px;
+    }
+
+    /* 写真編集モーダル */
+    .photo-modal {
+      position: fixed;
+      top: 0; left: 0; right: 0; bottom: 0;
+      background: rgba(0,0,0,0.9);
+      z-index: 200;
+      display: flex;
+      flex-direction: column;
+      padding: 8px;
+    }
+    .photo-modal-header {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      padding: 8px;
+      color: #FFF;
+    }
+    .photo-modal-header button {
+      min-width: var(--tap-target);
+      min-height: var(--tap-target);
+      background: rgba(255,255,255,0.15);
+      border: none;
+      color: #FFF;
+      border-radius: 8px;
+      font-size: 14px;
+      cursor: pointer;
+      padding: 8px 12px;
+    }
+    .photo-canvas-wrap {
+      flex: 1;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      overflow: hidden;
+    }
+    .photo-canvas-wrap canvas {
+      max-width: 100%;
+      max-height: 100%;
+      border-radius: 8px;
+    }
+    .filter-strip {
+      display: flex;
+      gap: 8px;
+      overflow-x: auto;
+      padding: 12px 0;
+      -webkit-overflow-scrolling: touch;
+    }
+    .filter-chip {
+      flex-shrink: 0;
+      min-width: 64px;
+      min-height: var(--tap-target);
+      padding: 8px 12px;
+      border-radius: 20px;
+      border: 2px solid rgba(255,255,255,0.3);
+      background: rgba(255,255,255,0.1);
+      color: #FFF;
+      font-size: 12px;
+      text-align: center;
+      cursor: pointer;
+      transition: border-color 0.2s;
+    }
+    .filter-chip.active {
+      border-color: var(--primary);
+      background: rgba(74,144,217,0.3);
+    }
+    .filter-chip.premium {
+      border-color: #F0AD4E;
+      position: relative;
+    }
+    .filter-chip.premium::after {
+      content: '👑';
+      position: absolute;
+      top: -6px;
+      right: -4px;
+      font-size: 10px;
+    }
+    .photo-actions {
+      display: flex;
+      gap: 8px;
+      padding: 8px 0;
+    }
+    .photo-actions button {
+      flex: 1;
+      min-height: var(--tap-target);
+      border: none;
+      border-radius: var(--radius);
+      font-size: 14px;
+      font-weight: 600;
+      cursor: pointer;
+    }
+    .stamp-badge {
+      position: absolute;
+      bottom: 8px;
+      left: 8px;
+      background: rgba(0,0,0,0.6);
+      color: #FFF;
+      padding: 2px 6px;
+      border-radius: 4px;
+      font-size: 9px;
+    }
+
+    /* 閲覧ビューアー */
+    .viewer-overlay {
+      position: fixed;
+      top: 0; left: 0; right: 0; bottom: 0;
+      background: #000;
+      z-index: 300;
+      display: flex;
+      flex-direction: column;
+      touch-action: pan-y;
+    }
+    .viewer-header {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      padding: 10px 12px;
+      color: #FFF;
+      background: rgba(0,0,0,0.8);
+      z-index: 2;
+    }
+    .viewer-header button {
+      min-width: var(--tap-target);
+      min-height: var(--tap-target);
+      background: rgba(255,255,255,0.15);
+      border: none;
+      color: #FFF;
+      border-radius: 8px;
+      font-size: 14px;
+      cursor: pointer;
+      padding: 8px 14px;
+    }
+    .viewer-body {
+      flex: 1;
+      position: relative;
+      overflow: hidden;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+    }
+    .viewer-img-container {
+      width: 100%;
+      height: 100%;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      position: relative;
+    }
+    .viewer-img-container canvas {
+      max-width: 100%;
+      max-height: 100%;
+      object-fit: contain;
+    }
+    .viewer-nav {
+      position: absolute;
+      top: 50%;
+      transform: translateY(-50%);
+      width: 50px;
+      height: 80px;
+      background: rgba(255,255,255,0.15);
+      border: none;
+      color: #FFF;
+      font-size: 24px;
+      cursor: pointer;
+      border-radius: 8px;
+      z-index: 2;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+    }
+    .viewer-nav.prev { left: 8px; }
+    .viewer-nav.next { right: 8px; }
+    .viewer-counter {
+      text-align: center;
+      color: rgba(255,255,255,0.7);
+      font-size: 13px;
+      padding: 8px;
+      background: rgba(0,0,0,0.8);
+    }
+  </style>
+</head>
+<body>
+  <header>
+    <h1>📸 Share it for all</h1>
+    <button class="help-btn" onclick="showGuide()" aria-label="ヘルプ">?</button>
+  </header>
+
+  <main id="app" class="container">
+    <!-- 画面はJSで動的に描画 -->
+  </main>
+
+  <div id="guide-overlay" class="guide-overlay hidden">
+    <div class="guide-card">
+      <h2 style="margin-bottom:16px; font-size:18px;">📖 使い方</h2>
+      <div class="guide-step">
+        <span class="guide-step-num">1</span>
+        <span>日付と合言葉でスペースを作成</span>
+      </div>
+      <div class="guide-step">
+        <span class="guide-step-num">2</span>
+        <span>写真や動画をアップロード</span>
+      </div>
+      <div class="guide-step">
+        <span class="guide-step-num">3</span>
+        <span>合言葉を伝えてみんなで共有！</span>
+      </div>
+      <p class="text-small text-light mb-16">例：日付 260728、合言葉「ワンチャンワンワン」</p>
+      <button class="btn btn-primary" onclick="dismissGuide()">はじめる</button>
+    </div>
+  </div>
+
+  <footer>© 2026 NOK Group — Share it for all</footer>
+
+  <script>
+    'use strict';
+
+    // ===== 設定 =====
+    const API_BASE = ''; // デプロイ時に設定
+    const USE_MOCK = true; // true: ローカルモック版 / false: バックエンドAPI使用
+    const RETRY_CONFIG = { maxRetries: 3, baseDelay: 1000, maxDelay: 10000, backoffMultiplier: 2 };
+
+    // ===== IndexedDB モックストレージ =====
+    const DB_NAME = 'share_it_db';
+    const DB_VERSION = 1;
+    let mockDb = null;
+
+    /**
+     * IndexedDBを初期化する。
+     */
+    function initMockDb() {
+      return new Promise((resolve, reject) => {
+        const request = indexedDB.open(DB_NAME, DB_VERSION);
+        request.onupgradeneeded = (e) => {
+          const db = e.target.result;
+          if (!db.objectStoreNames.contains('spaces')) {
+            db.createObjectStore('spaces', { keyPath: 'space_id' });
+          }
+          if (!db.objectStoreNames.contains('files')) {
+            const store = db.createObjectStore('files', { keyPath: 'file_id' });
+            store.createIndex('space_id', 'space_id', { unique: false });
+          }
+        };
+        request.onsuccess = (e) => { mockDb = e.target.result; resolve(mockDb); };
+        request.onerror = (e) => reject(e);
+      });
+    }
+
+    /**
+     * モックAPIを呼び出す（IndexedDBベース）。
+     */
+    async function mockApiCall(method, path, body) {
+      if (!mockDb) await initMockDb();
+      await new Promise(r => setTimeout(r, 200)); // 擬似レイテンシ
+
+      // POST /share-it/spaces — スペース作成
+      if (path === '/share-it/spaces' && method === 'POST') {
+        const { date_code, keyword, expiry_days } = body;
+        // 既存チェック
+        const existing = await mockFindSpace(date_code, keyword);
+        if (existing) {
+          return { status: 'existing', space_id: existing.space_id, date_code, keyword: existing.keyword, keyword_display: keyword.slice(0,2) + '***', expiry_date: existing.expiry_date, is_existing: true };
+        }
+        // 新規作成
+        const space_id = crypto.randomUUID();
+        const now = new Date();
+        const expiry = new Date(now.getTime() + (expiry_days || 7) * 86400000);
+        const space = {
+          space_id, date_code, keyword,
+          keyword_display: keyword.slice(0,2) + '***',
+          expiry_date: expiry.toISOString(),
+          created_at: now.toISOString(),
+          file_count: 0, total_size: 0
+        };
+        await mockPutItem('spaces', space);
+        return { status: 'created', space_id, date_code, keyword: body.keyword, keyword_display: space.keyword_display, expiry_date: space.expiry_date, is_existing: false };
+      }
+
+      // POST /share-it/spaces/access — スペースアクセス
+      if (path === '/share-it/spaces/access' && method === 'POST') {
+        const { date_code, keyword } = body;
+        const space = await mockFindSpace(date_code, keyword);
+        if (!space) throw new Error('一致する共有スペースが見つかりませんでした');
+        if (new Date(space.expiry_date) < new Date()) throw new Error('この共有スペースは有効期限が過ぎたため、ファイルは利用できません');
+        const remaining = mockRemainingTime(space.expiry_date);
+        const files = await mockGetFiles(space.space_id);
+        return { space_id: space.space_id, date_code, keyword: space.keyword, keyword_display: space.keyword_display, expiry_date: space.expiry_date, file_count: files.length, remaining_time: remaining };
+      }
+
+      // POST /share-it/spaces/{spaceId}/upload — アップロードURL（モック: 直接保存）
+      if (path.match(/\/share-it\/spaces\/[^/]+\/upload$/) && method === 'POST') {
+        const spaceId = path.split('/')[3];
+        const { files } = body;
+        const uploads = files.map(f => ({ file_id: crypto.randomUUID(), file_name: f.file_name, content_type: f.content_type, file_size: f.file_size, space_id: spaceId }));
+        return { uploads, _mock_direct: true };
+      }
+
+      // POST /share-it/spaces/{spaceId}/upload/complete
+      if (path.match(/\/share-it\/spaces\/[^/]+\/upload\/complete$/) && method === 'POST') {
+        const spaceId = path.split('/')[3];
+        const files = await mockGetFiles(spaceId);
+        return { completed: body.file_ids, file_count: files.length, total_size: files.reduce((s,f) => s + (f.file_size||0), 0) };
+      }
+
+      // GET /share-it/spaces/{spaceId}/files
+      if (path.match(/\/share-it\/spaces\/[^/]+\/files$/) && method === 'GET') {
+        const spaceId = path.split('/')[3];
+        const space = await mockGetSpace(spaceId);
+        if (!space) throw new Error('スペースが見つかりません');
+        const files = await mockGetFiles(spaceId);
+        const remaining = mockRemainingTime(space.expiry_date);
+        return {
+          space_id: spaceId, date_code: space.date_code, keyword: space.keyword, expiry_date: space.expiry_date, remaining_time: remaining,
+          file_count: files.length, total_size: files.reduce((s,f) => s + (f.file_size||0), 0),
+          files: files.map(f => ({ file_id: f.file_id, file_name: f.file_name, content_type: f.content_type, file_size: f.file_size, uploaded_at: f.uploaded_at, thumbnail_url: f.data_url || null }))
+        };
+      }
+
+      // GET /share-it/spaces/{spaceId}/files/{fileId}/download
+      if (path.match(/\/share-it\/spaces\/[^/]+\/files\/[^/]+\/download$/) && method === 'GET') {
+        const parts = path.split('/');
+        const fileId = parts[5];
+        const file = await mockGetItem('files', fileId);
+        if (!file) throw new Error('ファイルが見つかりませんでした');
+        return { download_url: file.data_url, file_name: file.file_name, expires_in: 300 };
+      }
+
+      // GET /share-it/spaces/{spaceId}/download-all
+      if (path.match(/\/share-it\/spaces\/[^/]+\/download-all$/) && method === 'GET') {
+        const spaceId = path.split('/')[3];
+        const files = await mockGetFiles(spaceId);
+        if (!files.length) throw new Error('ダウンロード可能なファイルがありません');
+        return { download_url: '_mock_zip_', file_name: 'share-all.zip', file_count: files.length, total_size: files.reduce((s,f) => s + (f.file_size||0), 0), expires_in: 600, _files: files };
+      }
+
+      throw new Error('エンドポイントが見つかりません');
+    }
+
+    // --- モックDB ヘルパー ---
+    function mockPutItem(store, item) {
+      return new Promise((resolve, reject) => {
+        const tx = mockDb.transaction(store, 'readwrite');
+        tx.objectStore(store).put(item);
+        tx.oncomplete = resolve;
+        tx.onerror = reject;
+      });
+    }
+    function mockGetItem(store, key) {
+      return new Promise((resolve, reject) => {
+        const tx = mockDb.transaction(store, 'readonly');
+        const req = tx.objectStore(store).get(key);
+        req.onsuccess = () => resolve(req.result);
+        req.onerror = reject;
+      });
+    }
+    function mockGetSpace(spaceId) {
+      return mockGetItem('spaces', spaceId);
+    }
+    function mockFindSpace(dateCode, keyword) {
+      return new Promise((resolve, reject) => {
+        const tx = mockDb.transaction('spaces', 'readonly');
+        const store = tx.objectStore('spaces');
+        const req = store.openCursor();
+        req.onsuccess = (e) => {
+          const cursor = e.target.result;
+          if (!cursor) { resolve(null); return; }
+          const s = cursor.value;
+          if (s.date_code === dateCode && s.keyword === keyword) { resolve(s); return; }
+          cursor.continue();
+        };
+        req.onerror = reject;
+      });
+    }
+    function mockGetFiles(spaceId) {
+      return new Promise((resolve, reject) => {
+        const tx = mockDb.transaction('files', 'readonly');
+        const idx = tx.objectStore('files').index('space_id');
+        const req = idx.getAll(spaceId);
+        req.onsuccess = () => resolve(req.result || []);
+        req.onerror = reject;
+      });
+    }
+    function mockRemainingTime(expiryDate) {
+      const remaining = new Date(expiryDate).getTime() - Date.now();
+      if (remaining <= 0) return '期限切れ';
+      const days = Math.floor(remaining / 86400000);
+      const hours = Math.floor((remaining % 86400000) / 3600000);
+      const mins = Math.floor((remaining % 3600000) / 60000);
+      if (days > 0) return `${days}日 ${hours}時間`;
+      if (hours > 0) return `${hours}時間 ${mins}分`;
+      return `${mins}分`;
+    }
+
+    // ===== 状態管理 =====
+    const appState = {
+      currentView: 'top',
+      spaceId: null,
+      spaceInfo: null,
+      files: [],
+      uploadQueue: [],
+      uploadProgress: {},
+      isLoading: false,
+      error: null,
+      guideCompleted: localStorage.getItem('share_it_guide_completed') === 'true'
+    };
+
+    // ===== 初期化 =====
+    document.addEventListener('DOMContentLoaded', () => {
+      if (!appState.guideCompleted) {
+        document.getElementById('guide-overlay').classList.remove('hidden');
+      }
+      window.addEventListener('hashchange', router);
+      router();
+    });
+
+    /**
+     * ガイドを表示する。
+     */
+    function showGuide() {
+      document.getElementById('guide-overlay').classList.remove('hidden');
+    }
+
+    /**
+     * ガイドを閉じて完了状態を保存する。
+     */
+    function dismissGuide() {
+      document.getElementById('guide-overlay').classList.add('hidden');
+      localStorage.setItem('share_it_guide_completed', 'true');
+      appState.guideCompleted = true;
+    }
+
+    // ===== ルーター =====
+    /**
+     * ハッシュに基づいて画面を切り替える。
+     */
+    function router() {
+      const hash = location.hash || '#/';
+      const app = document.getElementById('app');
+
+      if (hash === '#/' || hash === '#') {
+        renderTopPage(app);
+      } else if (hash === '#create') {
+        renderCreateSpace(app);
+      } else if (hash === '#access') {
+        renderAccessSpace(app);
+      } else if (hash.startsWith('#space/')) {
+        const spaceId = hash.replace('#space/', '');
+        appState.spaceId = spaceId;
+        renderSpaceView(app, spaceId);
+      } else {
+        renderTopPage(app);
+      }
+    }
+
+    // ===== トップページ =====
+    /**
+     * トップページを描画する。
+     */
+    function renderTopPage(container) {
+      appState.currentView = 'top';
+      container.innerHTML = `
+        <div class="card text-center">
+          <h2 style="font-size:20px; margin-bottom:8px;">📸 Share it for all</h2>
+          <p class="text-light text-small">個人情報なしで写真・動画をシェア</p>
+        </div>
+        <div class="card">
+          <p class="text-small text-light mb-16">
+            💡 例：日付 <strong>260728</strong>、合言葉 <strong>「ワンチャンワンワン」</strong>
+          </p>
+          <div class="flex-col gap-12">
+            <a href="#create" class="btn btn-primary">📂 スペースを作成する</a>
+            <a href="#access" class="btn btn-outline">🔑 スペースにアクセスする</a>
+          </div>
+        </div>
+      `;
+    }
+
+    // ===== スペース作成画面 =====
+    /**
+     * スペース作成画面を描画する。
+     */
+    function renderCreateSpace(container) {
+      appState.currentView = 'create';
+      const today = new Date();
+      const defaultDate = String(today.getFullYear() - 2000).padStart(2, '0')
+        + String(today.getMonth() + 1).padStart(2, '0')
+        + String(today.getDate()).padStart(2, '0');
+
+      container.innerHTML = `
+        <div class="card">
+          <h2 style="font-size:18px; margin-bottom:16px;">📂 スペースを作成</h2>
+          <div class="form-group">
+            <label for="create-date">日付コード (YYMMDD)</label>
+            <input type="text" id="create-date" placeholder="例: ${defaultDate}" maxlength="6" inputmode="numeric" value="${defaultDate}">
+            <div id="create-date-error" class="error-msg hidden"></div>
+          </div>
+          <div class="form-group">
+            <label for="create-keyword">合言葉</label>
+            <input type="text" id="create-keyword" placeholder="例: ワンチャンワンワン" maxlength="50">
+            <div id="create-keyword-error" class="error-msg hidden"></div>
+          </div>
+          <div class="form-group">
+            <label for="create-expiry">有効期限</label>
+            <select id="create-expiry">
+              <option value="1">1日</option>
+              <option value="3">3日</option>
+              <option value="7" selected>1週間</option>
+              <option value="14">2週間</option>
+              <option value="30">1ヶ月</option>
+            </select>
+          </div>
+          <div id="create-error" class="alert alert-error hidden"></div>
+          <button class="btn btn-primary mt-16" onclick="handleCreateSpace()">作成する</button>
+          <a href="#/" class="btn btn-outline mt-8">← 戻る</a>
+        </div>
+      `;
+    }
+
+    /**
+     * スペース作成を実行する。
+     */
+    async function handleCreateSpace() {
+      const dateCode = document.getElementById('create-date').value.trim();
+      const keyword = document.getElementById('create-keyword').value;
+      const expiryDays = document.getElementById('create-expiry').value;
+
+      // クライアントサイドバリデーション
+      let hasError = false;
+      hideError('create-date-error');
+      hideError('create-keyword-error');
+      hideError('create-error');
+
+      if (!dateCode || dateCode.length !== 6 || !/^\d{6}$/.test(dateCode)) {
+        showFieldError('create-date-error', 'YYMMDD形式の6桁数字で入力してください');
+        hasError = true;
+      }
+      if (!keyword || !keyword.trim()) {
+        showFieldError('create-keyword-error', '合言葉を入力してください');
+        hasError = true;
+      }
+      if (hasError) return;
+
+      try {
+        const data = await apiCall('POST', '/share-it/spaces', {
+          date_code: dateCode,
+          keyword: keyword,
+          expiry_days: parseInt(expiryDays)
+        });
+        appState.spaceId = data.space_id;
+        appState.spaceInfo = data;
+        location.hash = `#space/${data.space_id}`;
+      } catch (err) {
+        showAlert('create-error', err.message);
+      }
+    }
+
+    // ===== スペースアクセス画面 =====
+    /**
+     * スペースアクセス画面を描画する。
+     */
+    function renderAccessSpace(container) {
+      appState.currentView = 'access';
+      container.innerHTML = `
+        <div class="card">
+          <h2 style="font-size:18px; margin-bottom:16px;">🔑 スペースにアクセス</h2>
+          <div class="form-group">
+            <label for="access-date">日付コード (YYMMDD)</label>
+            <input type="text" id="access-date" placeholder="例: 260728" maxlength="6" inputmode="numeric">
+            <div id="access-date-error" class="error-msg hidden"></div>
+          </div>
+          <div class="form-group">
+            <label for="access-keyword">合言葉</label>
+            <input type="text" id="access-keyword" placeholder="例: ワンチャンワンワン" maxlength="50">
+            <div id="access-keyword-error" class="error-msg hidden"></div>
+          </div>
+          <div id="access-error" class="alert alert-error hidden"></div>
+          <button class="btn btn-primary mt-16" onclick="handleAccessSpace()">アクセスする</button>
+          <a href="#/" class="btn btn-outline mt-8">← 戻る</a>
+        </div>
+      `;
+    }
+
+    /**
+     * スペースアクセスを実行する。
+     */
+    async function handleAccessSpace() {
+      const dateCode = document.getElementById('access-date').value.trim();
+      const keyword = document.getElementById('access-keyword').value;
+
+      let hasError = false;
+      hideError('access-date-error');
+      hideError('access-keyword-error');
+      hideError('access-error');
+
+      if (!dateCode || dateCode.length !== 6 || !/^\d{6}$/.test(dateCode)) {
+        showFieldError('access-date-error', 'YYMMDD形式の6桁数字で入力してください');
+        hasError = true;
+      }
+      if (!keyword || !keyword.trim()) {
+        showFieldError('access-keyword-error', '合言葉を入力してください');
+        hasError = true;
+      }
+      if (hasError) return;
+
+      try {
+        const data = await apiCall('POST', '/share-it/spaces/access', {
+          date_code: dateCode,
+          keyword: keyword
+        });
+        appState.spaceId = data.space_id;
+        appState.spaceInfo = data;
+        location.hash = `#space/${data.space_id}`;
+      } catch (err) {
+        showAlert('access-error', err.message);
+      }
+    }
+
+    // ===== スペースビュー画面 =====
+    /**
+     * スペースビュー画面を描画する。
+     */
+    async function renderSpaceView(container, spaceId) {
+      appState.currentView = 'space';
+      container.innerHTML = `
+        <div class="card">
+          <div style="display:flex; justify-content:space-between; align-items:center;">
+            <h2 style="font-size:18px;">📁 共有スペース</h2>
+            <span id="remaining-badge" class="badge badge-info"></span>
+          </div>
+          <div id="space-info" class="text-small text-light mt-8"></div>
+        </div>
+        <div class="card">
+          <h3 style="font-size:16px; margin-bottom:12px;">📤 ファイルをアップロード</h3>
+          <input type="file" id="file-input" multiple accept="image/jpeg,image/png,image/heic,video/mp4,video/quicktime" style="display:none">
+          <input type="file" id="camera-input" capture="environment" accept="image/*" style="display:none">
+          <div class="flex-col gap-12">
+            <button class="btn btn-outline" onclick="document.getElementById('file-input').click()">📁 ファイルを選択</button>
+            <button class="btn btn-outline" onclick="document.getElementById('camera-input').click()">📷 カメラで撮影</button>
+          </div>
+          <div id="upload-progress" class="mt-16"></div>
+        </div>
+        <div class="card">
+          <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:12px;">
+            <h3 style="font-size:16px;">📥 ファイル一覧</h3>
+            <div style="display:flex; gap:6px;">
+              <button id="viewer-btn" class="btn btn-outline" style="width:auto; font-size:13px; padding:8px 12px;" onclick="openViewer()" disabled>📖 閲覧</button>
+              <button id="download-all-btn" class="btn btn-success" style="width:auto; font-size:13px; padding:8px 12px;" onclick="handleDownloadAll()" disabled>一括DL</button>
+            </div>
+          </div>
+          <div id="file-list"><div class="text-center text-light"><div class="spinner"></div></div></div>
+        </div>
+        <a href="#/" class="btn btn-outline">← トップに戻る</a>
+      `;
+
+      // ファイル選択イベント
+      document.getElementById('file-input').addEventListener('change', handleFileSelect);
+      document.getElementById('camera-input').addEventListener('change', handleFileSelect);
+
+      // ファイル一覧読み込み
+      await loadFiles(spaceId);
+    }
+
+    /**
+     * ファイル一覧を読み込む。
+     */
+    async function loadFiles(spaceId) {
+      try {
+        const data = await apiCall('GET', `/share-it/spaces/${spaceId}/files`);
+        appState.files = data.files || [];
+        appState.spaceInfo = data;
+
+        // 残り時間表示
+        const badge = document.getElementById('remaining-badge');
+        if (badge) badge.textContent = `⏱ ${data.remaining_time}`;
+
+        // スペース情報表示
+        const info = document.getElementById('space-info');
+        if (info) info.textContent = `${data.file_count}ファイル`;
+
+        // ファイル一覧描画
+        renderFileList(data.files);
+
+        // 一括DLボタン制御
+        const dlBtn = document.getElementById('download-all-btn');
+        if (dlBtn) dlBtn.disabled = data.files.length === 0;
+        const viewerBtn = document.getElementById('viewer-btn');
+        if (viewerBtn) viewerBtn.disabled = data.files.filter(f => f.thumbnail_url || f.content_type?.startsWith('image')).length === 0;
+      } catch (err) {
+        const fileList = document.getElementById('file-list');
+        if (fileList) fileList.innerHTML = `<p class="alert alert-error">${err.message}</p>`;
+      }
+    }
+
+    /**
+     * ファイル一覧を描画する。
+     */
+    function renderFileList(files) {
+      const container = document.getElementById('file-list');
+      if (!container) return;
+
+      if (files.length === 0) {
+        container.innerHTML = '<p class="text-center text-light text-small">ファイルがありません</p>';
+        return;
+      }
+
+      let html = '<div class="file-grid">';
+      for (const file of files) {
+        const clickAction = file.thumbnail_url ? `openPhotoEditor('${file.file_id}')` : `handleDownloadFile('${file.file_id}')`;
+        if (file.thumbnail_url) {
+          html += `
+            <div class="file-item" onclick="${clickAction}">
+              <img src="${file.thumbnail_url}" alt="${file.file_name}" loading="lazy">
+              <span class="file-name">${file.file_name}</span>
+            </div>`;
+        } else {
+          const icon = file.content_type?.startsWith('video') ? '🎬' : '📄';
+          html += `
+            <div class="file-item" onclick="${clickAction}">
+              <div class="file-icon">${icon}</div>
+              <span class="file-name">${file.file_name}</span>
+            </div>`;
+        }
+      }
+      html += '</div>';
+      container.innerHTML = html;
+    }
+
+    // ===== ファイルアップロード =====
+    /**
+     * ファイル選択を処理する。
+     */
+    async function handleFileSelect(e) {
+      const files = Array.from(e.target.files);
+      if (!files.length) return;
+
+      // バリデーション
+      if (files.length > 20) {
+        alert('一度にアップロードできるのは20ファイルまでです');
+        e.target.value = '';
+        return;
+      }
+
+      const maxSize = 100 * 1024 * 1024;
+      for (const file of files) {
+        if (file.size > maxSize) {
+          alert(`${file.name}: ファイルサイズは100MB以下にしてください`);
+          e.target.value = '';
+          return;
+        }
+      }
+
+      // Presigned URL取得
+      const fileInfos = files.map(f => ({
+        file_name: f.name,
+        content_type: f.type || 'application/octet-stream',
+        file_size: f.size
+      }));
+
+      try {
+        const data = await apiCall('POST', `/share-it/spaces/${appState.spaceId}/upload`, { files: fileInfos });
+        const uploads = data.uploads;
+
+        // アップロード実行
+        const progressContainer = document.getElementById('upload-progress');
+        progressContainer.innerHTML = '';
+
+        const completedIds = [];
+
+        for (let i = 0; i < files.length; i++) {
+          const file = files[i];
+          const upload = uploads[i];
+
+          // プログレスバー表示
+          const progressEl = document.createElement('div');
+          progressEl.innerHTML = `
+            <div class="text-small">${file.name}</div>
+            <div class="progress-bar"><div class="progress-fill" id="prog-${upload.file_id}" style="width:0%"></div></div>
+          `;
+          progressContainer.appendChild(progressEl);
+
+          // モックモード: IndexedDBに直接保存
+          if (USE_MOCK) {
+            const dataUrl = await readFileAsDataURL(file);
+            await mockPutItem('files', {
+              file_id: upload.file_id,
+              space_id: appState.spaceId,
+              file_name: file.name,
+              content_type: file.type,
+              file_size: file.size,
+              data_url: dataUrl,
+              uploaded_at: new Date().toISOString()
+            });
+            const bar = document.getElementById(`prog-${upload.file_id}`);
+            if (bar) bar.style.width = '100%';
+            completedIds.push(upload.file_id);
+          } else {
+            // 本番: S3に直接アップロード
+            const success = await uploadToS3(file, upload.upload_url, upload.file_id);
+            if (success) {
+              completedIds.push(upload.file_id);
+            }
+          }
+        }
+
+        // 完了通知
+        if (completedIds.length > 0) {
+          await apiCall('POST', `/share-it/spaces/${appState.spaceId}/upload/complete`, { file_ids: completedIds });
+        }
+
+        // ファイル一覧リロード
+        await loadFiles(appState.spaceId);
+        progressContainer.innerHTML = `<div class="alert alert-success">✅ ${completedIds.length}ファイルのアップロードが完了しました</div>`;
+        e.target.value = '';
+
+      } catch (err) {
+        alert('アップロードエラー: ' + err.message);
+      }
+    }
+
+    /**
+     * ファイルをDataURL形式で読み込む（モック用）。
+     */
+    function readFileAsDataURL(file) {
+      return new Promise((resolve, reject) => {
+        const reader = new FileReader();
+        reader.onload = () => resolve(reader.result);
+        reader.onerror = reject;
+        reader.readAsDataURL(file);
+      });
+    }
+
+    /**
+     * S3にファイルを直接アップロードする（Presigned PUT URL使用）。
+     */
+    function uploadToS3(file, uploadUrl, fileId) {
+      return new Promise((resolve) => {
+        const xhr = new XMLHttpRequest();
+        xhr.open('PUT', uploadUrl);
+        xhr.setRequestHeader('Content-Type', file.type || 'application/octet-stream');
+
+        xhr.upload.addEventListener('progress', (e) => {
+          if (e.lengthComputable) {
+            const pct = Math.round((e.loaded / e.total) * 100);
+            const bar = document.getElementById(`prog-${fileId}`);
+            if (bar) bar.style.width = pct + '%';
+          }
+        });
+
+        xhr.onload = () => {
+          const bar = document.getElementById(`prog-${fileId}`);
+          if (bar) bar.style.width = '100%';
+          resolve(xhr.status >= 200 && xhr.status < 300);
+        };
+
+        xhr.onerror = () => resolve(false);
+        xhr.send(file);
+      });
+    }
+
+    // ===== ファイルダウンロード =====
+    /**
+     * 個別ファイルをダウンロードする（スタンプ付き）。
+     */
+    async function handleDownloadFile(fileId) {
+      try {
+        if (USE_MOCK) {
+          const dbFile = await mockGetItem('files', fileId);
+          if (!dbFile) { alert('ファイルが見つかりません'); return; }
+          let dataUrl = dbFile.data_url;
+          // 画像ファイルにはスタンプを付ける
+          if (dbFile.content_type?.startsWith('image')) {
+            dataUrl = await applyStampToImage(dataUrl);
+          }
+          const a = document.createElement('a');
+          a.href = dataUrl;
+          a.download = 'shareit_' + dbFile.file_name;
+          document.body.appendChild(a);
+          a.click();
+          document.body.removeChild(a);
+        } else {
+          const data = await apiCall('GET', `/share-it/spaces/${appState.spaceId}/files/${fileId}/download`);
+          const a = document.createElement('a');
+          a.href = data.download_url;
+          a.download = data.file_name;
+          document.body.appendChild(a);
+          a.click();
+          document.body.removeChild(a);
+        }
+      } catch (err) {
+        alert('ダウンロードエラー: ' + err.message);
+      }
+    }
+
+    /**
+     * 全ファイルを一括ダウンロードする（スタンプ付き）。
+     */
+    async function handleDownloadAll() {
+      const btn = document.getElementById('download-all-btn');
+      if (btn) { btn.disabled = true; btn.textContent = '処理中...'; }
+
+      try {
+        if (USE_MOCK) {
+          // モック: 各画像にスタンプを焼き込んでダウンロード
+          const imageFiles = appState.files.filter(f => f.content_type?.startsWith('image'));
+          const otherFiles = appState.files.filter(f => !f.content_type?.startsWith('image'));
+
+          for (const file of imageFiles) {
+            const dbFile = await mockGetItem('files', file.file_id);
+            if (!dbFile || !dbFile.data_url) continue;
+
+            // Canvas でスタンプ焼き込み
+            const dataUrl = await applyStampToImage(dbFile.data_url);
+            const a = document.createElement('a');
+            a.href = dataUrl;
+            a.download = 'shareit_' + file.file_name;
+            document.body.appendChild(a);
+            a.click();
+            document.body.removeChild(a);
+            await new Promise(r => setTimeout(r, 600));
+          }
+
+          // 画像以外はそのままダウンロード
+          for (const file of otherFiles) {
+            const dbFile = await mockGetItem('files', file.file_id);
+            if (!dbFile || !dbFile.data_url) continue;
+            const a = document.createElement('a');
+            a.href = dbFile.data_url;
+            a.download = file.file_name;
+            document.body.appendChild(a);
+            a.click();
+            document.body.removeChild(a);
+            await new Promise(r => setTimeout(r, 600));
+          }
+
+          alert(`✅ ${imageFiles.length + otherFiles.length}ファイルのダウンロードが完了しました`);
+        } else {
+          // 本番API
+          const data = await apiCall('GET', `/share-it/spaces/${appState.spaceId}/download-all`);
+          const a = document.createElement('a');
+          a.href = data.download_url;
+          a.download = data.file_name;
+          document.body.appendChild(a);
+          a.click();
+          document.body.removeChild(a);
+        }
+      } catch (err) {
+        alert('一括ダウンロードエラー: ' + err.message);
+      } finally {
+        if (btn) { btn.disabled = false; btn.textContent = '一括DL'; }
+      }
+    }
+
+    /**
+     * 画像にスタンプを焼き込んでDataURLを返す。
+     */
+    function applyStampToImage(imgSrc) {
+      return new Promise((resolve) => {
+        const img = new Image();
+        img.onload = () => {
+          const canvas = document.createElement('canvas');
+          const ctx = canvas.getContext('2d');
+          canvas.width = img.width;
+          canvas.height = img.height;
+          ctx.drawImage(img, 0, 0);
+          drawStamp(ctx, img.width, img.height);
+          resolve(canvas.toDataURL('image/jpeg', 0.92));
+        };
+        img.src = imgSrc;
+      });
+    }
+
+    // ===== API通信 =====
+    /**
+     * APIを呼び出す（モック or リアル）。
+     */
+    async function apiCall(method, path, body = null, retryCount = 0) {
+      // モックモードの場合
+      if (USE_MOCK) {
+        return mockApiCall(method, path, body);
+      }
+
+      const options = {
+        method,
+        headers: { 'Content-Type': 'application/json' },
+      };
+      if (body) options.body = JSON.stringify(body);
+
+      try {
+        const response = await fetch(API_BASE + path, options);
+        const data = await response.json();
+
+        if (!response.ok) {
+          throw new Error(data.message || 'エラーが発生しました');
+        }
+        return data;
+      } catch (err) {
+        if (retryCount < RETRY_CONFIG.maxRetries && err.name === 'TypeError') {
+          // ネットワークエラーの場合リトライ
+          const delay = Math.min(
+            RETRY_CONFIG.baseDelay * Math.pow(RETRY_CONFIG.backoffMultiplier, retryCount),
+            RETRY_CONFIG.maxDelay
+          );
+          await new Promise(r => setTimeout(r, delay));
+          return apiCall(method, path, body, retryCount + 1);
+        }
+        throw err;
+      }
+    }
+
+    // ===== フォトエディター（フィルター＆スタンプ） =====
+    const FILTERS = {
+      none: { label: 'オリジナル', free: true, apply: (ctx, w, h) => {} },
+      grayscale: { label: 'モノクロ', free: true, apply: (ctx, w, h) => { ctx.filter = 'grayscale(100%)'; } },
+      sepia: { label: 'セピア', free: true, apply: (ctx, w, h) => { ctx.filter = 'sepia(80%) contrast(110%)'; } },
+      vintage: { label: 'ビンテージ', free: true, apply: (ctx, w, h) => {
+        ctx.filter = 'sepia(30%) contrast(120%) brightness(90%)';
+      }},
+      vivid: { label: 'ビビッド', free: true, apply: (ctx, w, h) => { ctx.filter = 'saturate(200%) contrast(120%)'; } },
+      pop: { label: 'ポップ', free: false, apply: (ctx, w, h) => {
+        ctx.filter = 'saturate(250%) contrast(130%) brightness(110%)';
+      }},
+      neon: { label: 'ネオン', free: false, apply: (ctx, w, h, imgData) => {
+        // ネオングロー効果
+        ctx.filter = 'saturate(300%) brightness(120%) contrast(150%)';
+      }},
+      comic: { label: 'コミック', free: false, apply: (ctx, w, h) => {
+        ctx.filter = 'contrast(200%) saturate(0%)';
+      }},
+      retrowave: { label: 'レトロ波', free: false, apply: (ctx, w, h) => {
+        ctx.filter = 'hue-rotate(280deg) saturate(200%) contrast(120%)';
+      }},
+      dreamy: { label: 'ドリーム', free: false, apply: (ctx, w, h) => {
+        ctx.filter = 'brightness(115%) contrast(85%) saturate(130%) blur(0.8px)';
+      }},
+      thermal: { label: 'サーモ', free: false, apply: (ctx, w, h) => {
+        ctx.filter = 'hue-rotate(180deg) saturate(400%) contrast(150%)';
+      }},
+      glitch: { label: 'グリッチ', free: false, apply: null }, // 特殊処理
+      sparkle: { label: '✨キラキラ', free: false, apply: null }, // 特殊処理
+    };
+
+    // 特殊フィルター処理（Canvas pixel manipulation）
+    function applyGlitchEffect(ctx, w, h) {
+      // RGBずらし + ランダムスライス
+      const imageData = ctx.getImageData(0, 0, w, h);
+      const data = imageData.data;
+
+      // RGBチャンネルずらし
+      const shift = Math.floor(w * 0.02);
+      for (let y = 0; y < h; y++) {
+        for (let x = 0; x < w - shift; x++) {
+          const i = (y * w + x) * 4;
+          const si = (y * w + x + shift) * 4;
+          data[i] = data[si]; // Red チャンネルをずらす
+        }
+      }
+
+      // ランダムスライス（横に数本ずらす）
+      for (let s = 0; s < 8; s++) {
+        const sliceY = Math.floor(Math.random() * h);
+        const sliceH = Math.floor(Math.random() * 20) + 5;
+        const sliceShift = Math.floor(Math.random() * 40) - 20;
+        for (let y = sliceY; y < Math.min(sliceY + sliceH, h); y++) {
+          for (let x = 0; x < w; x++) {
+            const srcX = Math.max(0, Math.min(w - 1, x + sliceShift));
+            const di = (y * w + x) * 4;
+            const si = (y * w + srcX) * 4;
+            data[di] = data[si];
+            data[di + 1] = data[si + 1];
+            data[di + 2] = data[si + 2];
+          }
+        }
+      }
+      ctx.putImageData(imageData, 0, 0);
+
+      // スキャンライン
+      ctx.fillStyle = 'rgba(0, 255, 200, 0.05)';
+      for (let y = 0; y < h; y += 3) {
+        ctx.fillRect(0, y, w, 1);
+      }
+    }
+
+    function applySparkleEffect(ctx, w, h) {
+      // キラキラパーティクル
+      const sparkleCount = 30;
+      for (let i = 0; i < sparkleCount; i++) {
+        const x = Math.random() * w;
+        const y = Math.random() * h;
+        const size = Math.random() * 12 + 4;
+        const alpha = Math.random() * 0.7 + 0.3;
+
+        ctx.save();
+        ctx.globalAlpha = alpha;
+        ctx.translate(x, y);
+        ctx.rotate(Math.random() * Math.PI);
+
+        // 4点の星形
+        ctx.beginPath();
+        ctx.fillStyle = '#FFFFFF';
+        const points = 4;
+        for (let p = 0; p < points * 2; p++) {
+          const r = p % 2 === 0 ? size : size * 0.3;
+          const angle = (p * Math.PI) / points;
+          const px = Math.cos(angle) * r;
+          const py = Math.sin(angle) * r;
+          if (p === 0) ctx.moveTo(px, py);
+          else ctx.lineTo(px, py);
+        }
+        ctx.closePath();
+        ctx.fill();
+
+        // グロー
+        ctx.shadowColor = '#FFFFFF';
+        ctx.shadowBlur = size;
+        ctx.fill();
+        ctx.restore();
+      }
+
+      // 虹色レンズフレア（小さめ）
+      const gradient = ctx.createRadialGradient(w * 0.7, h * 0.3, 0, w * 0.7, h * 0.3, w * 0.15);
+      gradient.addColorStop(0, 'rgba(255, 255, 255, 0.3)');
+      gradient.addColorStop(0.3, 'rgba(255, 200, 255, 0.1)');
+      gradient.addColorStop(1, 'rgba(255, 255, 255, 0)');
+      ctx.fillStyle = gradient;
+      ctx.fillRect(0, 0, w, h);
+    }
+
+    let editorState = { fileId: null, fileName: '', imgSrc: '', currentFilter: 'none', isPremium: false };
+
+    /**
+     * 写真エディターを開く。
+     */
+    async function openPhotoEditor(fileId) {
+      const file = appState.files.find(f => f.file_id === fileId);
+      if (!file) return;
+
+      // 画像データ取得
+      let imgSrc = file.thumbnail_url;
+      if (USE_MOCK) {
+        const dbFile = await mockGetItem('files', fileId);
+        if (dbFile) imgSrc = dbFile.data_url;
+      }
+
+      editorState = { fileId, fileName: file.file_name, imgSrc, currentFilter: 'none', isPremium: localStorage.getItem('share_it_premium') === 'true' };
+
+      // モーダル描画
+      const modal = document.createElement('div');
+      modal.id = 'photo-editor-modal';
+      modal.className = 'photo-modal';
+      modal.innerHTML = `
+        <div class="photo-modal-header">
+          <button onclick="closePhotoEditor()">✕ 閉じる</button>
+          <span style="font-size:13px;">${file.file_name}</span>
+          <button onclick="handleDownloadFile('${fileId}')" style="font-size:12px;">📥 元画像</button>
+        </div>
+        <div class="photo-canvas-wrap">
+          <canvas id="photo-canvas"></canvas>
+        </div>
+        <div class="filter-strip" id="filter-strip"></div>
+        <div class="photo-actions">
+          <button style="background:var(--primary);color:#FFF;" onclick="downloadWithStamp()">📥 スタンプ付き保存</button>
+          <button style="background:var(--success);color:#FFF;" onclick="shareToSpace()">📤 スペースにシェア</button>
+        </div>
+        <div class="photo-actions">
+          <button style="background:${editorState.isPremium ? '#6C63FF' : '#888'};color:#FFF;" onclick="downloadNoStamp()">
+            ${editorState.isPremium ? '👑 スタンプなし保存' : '👑 スタンプなし (Pro)'}
+          </button>
+        </div>
+      `;
+      document.body.appendChild(modal);
+
+      // フィルターチップ描画
+      renderFilterStrip();
+
+      // Canvas に画像を描画
+      await drawPhotoOnCanvas();
+    }
+
+    /**
+     * フォトエディターを閉じる。
+     */
+    function closePhotoEditor() {
+      const modal = document.getElementById('photo-editor-modal');
+      if (modal) modal.remove();
+    }
+
+    /**
+     * フィルター選択UIを描画する。
+     */
+    function renderFilterStrip() {
+      const strip = document.getElementById('filter-strip');
+      if (!strip) return;
+      let html = '';
+      for (const [key, filter] of Object.entries(FILTERS)) {
+        const active = key === editorState.currentFilter ? ' active' : '';
+        const premium = !filter.free ? ' premium' : '';
+        const disabled = (!filter.free && !editorState.isPremium) ? ' style="opacity:0.6"' : '';
+        html += `<div class="filter-chip${active}${premium}"${disabled} onclick="applyFilter('${key}')">${filter.label}</div>`;
+      }
+      strip.innerHTML = html;
+    }
+
+    /**
+     * フィルターを適用する。
+     */
+    async function applyFilter(filterKey) {
+      const filter = FILTERS[filterKey];
+      if (!filter) return;
+
+      // 課金フィルターのチェック
+      if (!filter.free && !editorState.isPremium) {
+        if (confirm('このフィルターはPro版の機能です。\nPro版を有効にしますか？（デモ: 無料で体験）')) {
+          localStorage.setItem('share_it_premium', 'true');
+          editorState.isPremium = true;
+          // ボタンテキスト更新
+          const modal = document.getElementById('photo-editor-modal');
+          if (modal) {
+            const btns = modal.querySelectorAll('.photo-actions button');
+            if (btns[1]) { btns[1].style.background = 'var(--success)'; btns[1].textContent = '📥 スタンプなし保存'; }
+          }
+        } else {
+          return;
+        }
+      }
+
+      editorState.currentFilter = filterKey;
+      renderFilterStrip();
+      await drawPhotoOnCanvas();
+    }
+
+    /**
+     * Canvas に画像を描画する（フィルター適用）。
+     */
+    async function drawPhotoOnCanvas() {
+      const canvas = document.getElementById('photo-canvas');
+      if (!canvas) return;
+      const ctx = canvas.getContext('2d');
+
+      const img = new Image();
+      img.crossOrigin = 'anonymous';
+
+      await new Promise((resolve, reject) => {
+        img.onload = resolve;
+        img.onerror = reject;
+        img.src = editorState.imgSrc;
+      });
+
+      // Canvas サイズ設定（最大幅制限）
+      const maxW = Math.min(img.width, window.innerWidth - 32);
+      const scale = maxW / img.width;
+      canvas.width = img.width * scale;
+      canvas.height = img.height * scale;
+
+      const w = canvas.width;
+      const h = canvas.height;
+      const filterKey = editorState.currentFilter;
+      const filter = FILTERS[filterKey];
+
+      // まず画像を描画
+      ctx.filter = 'none';
+      if (filter && filter.apply) {
+        filter.apply(ctx, w, h);
+        ctx.drawImage(img, 0, 0, w, h);
+        ctx.filter = 'none';
+      } else {
+        ctx.drawImage(img, 0, 0, w, h);
+      }
+
+      // 特殊フィルターの後処理
+      if (filterKey === 'glitch') {
+        ctx.filter = 'none';
+        ctx.drawImage(img, 0, 0, w, h);
+        applyGlitchEffect(ctx, w, h);
+      } else if (filterKey === 'sparkle') {
+        ctx.filter = 'brightness(108%) saturate(120%)';
+        ctx.drawImage(img, 0, 0, w, h);
+        ctx.filter = 'none';
+        applySparkleEffect(ctx, w, h);
+      } else if (filterKey === 'comic') {
+        // コミック: 高コントラスト白黒 + ドット風
+        ctx.filter = 'contrast(200%) saturate(0%)';
+        ctx.drawImage(img, 0, 0, w, h);
+        ctx.filter = 'none';
+        // ハーフトーンドット風オーバーレイ
+        ctx.globalAlpha = 0.08;
+        for (let y = 0; y < h; y += 4) {
+          for (let x = 0; x < w; x += 4) {
+            ctx.fillStyle = (x + y) % 8 === 0 ? '#000' : 'transparent';
+            ctx.fillRect(x, y, 2, 2);
+          }
+        }
+        ctx.globalAlpha = 1.0;
+      }
+    }
+
+    /**
+     * スタンプを描画する（合言葉入り — 大きく斜体で目立つ）。
+     */
+    function drawStamp(ctx, width, height) {
+      const space = appState.spaceInfo;
+      const dateCode = space?.date_code || '------';
+      // マスクなしの合言葉を表示（拡散効果のため）
+      const keyword = space?.keyword || space?.keyword_display || '***';
+
+      // 大きめの半透明帯（画像高さの12%、最低60px）
+      const bandHeight = Math.max(60, Math.floor(height * 0.12));
+      
+      // グラデーション帯（より洒落た印象）
+      const gradient = ctx.createLinearGradient(0, height - bandHeight, 0, height);
+      gradient.addColorStop(0, 'rgba(0, 0, 0, 0)');
+      gradient.addColorStop(0.3, 'rgba(0, 0, 0, 0.6)');
+      gradient.addColorStop(1, 'rgba(0, 0, 0, 0.8)');
+      ctx.fillStyle = gradient;
+      ctx.fillRect(0, height - bandHeight, width, bandHeight);
+
+      // メインテキスト（大きい斜体）
+      const mainFontSize = Math.max(36, Math.min(80, Math.floor(width * 0.08)));
+      ctx.font = `italic bold ${mainFontSize}px "Georgia", "Times New Roman", serif`;
+      ctx.fillStyle = '#FFFFFF';
+      ctx.textAlign = 'center';
+      ctx.textBaseline = 'middle';
+      ctx.shadowColor = 'rgba(0,0,0,0.8)';
+      ctx.shadowBlur = 6;
+      ctx.fillText(`Share it ✦ ${keyword}`, width / 2, height - bandHeight * 0.55);
+
+      // サブテキスト（日付）
+      const subFontSize = Math.max(14, Math.floor(mainFontSize * 0.4));
+      ctx.font = `italic ${subFontSize}px "Georgia", serif`;
+      ctx.fillStyle = 'rgba(255,255,255,0.75)';
+      ctx.shadowBlur = 3;
+      ctx.fillText(`📸 ${dateCode} — shareit-app.com`, width / 2, height - bandHeight * 0.2);
+
+      ctx.shadowColor = 'transparent';
+      ctx.shadowBlur = 0;
+    }
+
+    /**
+     * スタンプ付きで保存する。
+     */
+    async function downloadWithStamp() {
+      const exportCanvas = document.createElement('canvas');
+      const ctx = exportCanvas.getContext('2d');
+      const img = new Image();
+      img.crossOrigin = 'anonymous';
+      await new Promise((resolve) => { img.onload = resolve; img.src = editorState.imgSrc; });
+
+      const w = img.width;
+      const h = img.height;
+      exportCanvas.width = w;
+      exportCanvas.height = h;
+
+      // フィルター適用（フルサイズ）
+      const filterKey = editorState.currentFilter;
+      const filter = FILTERS[filterKey];
+
+      if (filterKey === 'glitch') {
+        ctx.drawImage(img, 0, 0, w, h);
+        applyGlitchEffect(ctx, w, h);
+      } else if (filterKey === 'sparkle') {
+        ctx.filter = 'brightness(108%) saturate(120%)';
+        ctx.drawImage(img, 0, 0, w, h);
+        ctx.filter = 'none';
+        applySparkleEffect(ctx, w, h);
+      } else if (filterKey === 'comic') {
+        ctx.filter = 'contrast(200%) saturate(0%)';
+        ctx.drawImage(img, 0, 0, w, h);
+        ctx.filter = 'none';
+        ctx.globalAlpha = 0.08;
+        for (let y = 0; y < h; y += 4) {
+          for (let x = 0; x < w; x += 4) {
+            ctx.fillStyle = (x + y) % 8 === 0 ? '#000' : 'transparent';
+            ctx.fillRect(x, y, 2, 2);
+          }
+        }
+        ctx.globalAlpha = 1.0;
+      } else if (filter && filter.apply) {
+        filter.apply(ctx, w, h);
+        ctx.drawImage(img, 0, 0, w, h);
+        ctx.filter = 'none';
+      } else {
+        ctx.drawImage(img, 0, 0, w, h);
+      }
+
+      // スタンプ描画
+      drawStamp(ctx, w, h);
+
+      // ダウンロード
+      const dataUrl = exportCanvas.toDataURL('image/jpeg', 0.92);
+      const a = document.createElement('a');
+      a.href = dataUrl;
+      a.download = 'shareit_' + editorState.fileName;
+      document.body.appendChild(a);
+      a.click();
+      document.body.removeChild(a);
+    }
+
+    /**
+     * スタンプなしで保存する（Pro版のみ）。
+     */
+    async function downloadNoStamp() {
+      if (!editorState.isPremium) {
+        if (confirm('スタンプなし保存はPro版の機能です。\nPro版を有効にしますか？（デモ: 無料で体験）')) {
+          localStorage.setItem('share_it_premium', 'true');
+          editorState.isPremium = true;
+        } else {
+          return;
+        }
+      }
+
+      const exportCanvas = document.createElement('canvas');
+      const ctx = exportCanvas.getContext('2d');
+      const img = new Image();
+      img.crossOrigin = 'anonymous';
+      await new Promise((resolve) => { img.onload = resolve; img.src = editorState.imgSrc; });
+
+      const w = img.width;
+      const h = img.height;
+      exportCanvas.width = w;
+      exportCanvas.height = h;
+
+      // フィルター適用（スタンプなし）
+      const filterKey = editorState.currentFilter;
+      const filter = FILTERS[filterKey];
+
+      if (filterKey === 'glitch') {
+        ctx.drawImage(img, 0, 0, w, h);
+        applyGlitchEffect(ctx, w, h);
+      } else if (filterKey === 'sparkle') {
+        ctx.filter = 'brightness(108%) saturate(120%)';
+        ctx.drawImage(img, 0, 0, w, h);
+        ctx.filter = 'none';
+        applySparkleEffect(ctx, w, h);
+      } else if (filterKey === 'comic') {
+        ctx.filter = 'contrast(200%) saturate(0%)';
+        ctx.drawImage(img, 0, 0, w, h);
+        ctx.filter = 'none';
+        ctx.globalAlpha = 0.08;
+        for (let y = 0; y < h; y += 4) {
+          for (let x = 0; x < w; x += 4) {
+            ctx.fillStyle = (x + y) % 8 === 0 ? '#000' : 'transparent';
+            ctx.fillRect(x, y, 2, 2);
+          }
+        }
+        ctx.globalAlpha = 1.0;
+      } else if (filter && filter.apply) {
+        filter.apply(ctx, w, h);
+        ctx.drawImage(img, 0, 0, w, h);
+        ctx.filter = 'none';
+      } else {
+        ctx.drawImage(img, 0, 0, w, h);
+      }
+
+      const dataUrl = exportCanvas.toDataURL('image/jpeg', 0.92);
+      const a = document.createElement('a');
+      a.href = dataUrl;
+      a.download = editorState.fileName;
+      document.body.appendChild(a);
+      a.click();
+      document.body.removeChild(a);
+    }
+
+    // ===== 閲覧ビューアー（スワイプ対応） =====
+    let viewerState = { images: [], currentIndex: 0 };
+
+    /**
+     * 閲覧ビューアーを開く。
+     */
+    async function openViewer(startIndex = 0) {
+      // 画像ファイルのみ抽出
+      const imageFiles = appState.files.filter(f => f.thumbnail_url || f.content_type?.startsWith('image'));
+      if (!imageFiles.length) return;
+
+      // モックの場合、フルサイズ画像を取得
+      const images = [];
+      for (const file of imageFiles) {
+        let src = file.thumbnail_url;
+        if (USE_MOCK) {
+          const dbFile = await mockGetItem('files', file.file_id);
+          if (dbFile) src = dbFile.data_url;
+        }
+        images.push({ src, file_name: file.file_name, file_id: file.file_id });
+      }
+
+      viewerState = { images, currentIndex: startIndex };
+
+      // モーダル生成
+      const viewer = document.createElement('div');
+      viewer.id = 'photo-viewer';
+      viewer.className = 'viewer-overlay';
+      viewer.innerHTML = `
+        <div class="viewer-header">
+          <button onclick="closeViewer()">✕ 閉じる</button>
+          <span id="viewer-filename" style="font-size:12px; opacity:0.8;"></span>
+          <button onclick="openPhotoEditorFromViewer()">🎨 加工</button>
+        </div>
+        <div class="viewer-body" id="viewer-body">
+          <button class="viewer-nav prev" onclick="viewerPrev()">‹</button>
+          <div class="viewer-img-container">
+            <canvas id="viewer-canvas"></canvas>
+          </div>
+          <button class="viewer-nav next" onclick="viewerNext()">›</button>
+        </div>
+        <div class="viewer-counter" id="viewer-counter"></div>
+      `;
+      document.body.appendChild(viewer);
+
+      // スワイプ対応
+      const body = document.getElementById('viewer-body');
+      let touchStartX = 0;
+      let touchEndX = 0;
+      body.addEventListener('touchstart', (e) => { touchStartX = e.changedTouches[0].screenX; }, { passive: true });
+      body.addEventListener('touchend', (e) => {
+        touchEndX = e.changedTouches[0].screenX;
+        const diff = touchStartX - touchEndX;
+        if (Math.abs(diff) > 50) {
+          if (diff > 0) viewerNext();
+          else viewerPrev();
+        }
+      }, { passive: true });
+
+      // キーボード操作
+      document.addEventListener('keydown', viewerKeyHandler);
+
+      // 最初の画像を表示
+      renderViewerImage();
+    }
+
+    /**
+     * ビューアーを閉じる。
+     */
+    function closeViewer() {
+      const viewer = document.getElementById('photo-viewer');
+      if (viewer) viewer.remove();
+      document.removeEventListener('keydown', viewerKeyHandler);
+    }
+
+    /**
+     * キーボードイベント処理。
+     */
+    function viewerKeyHandler(e) {
+      if (e.key === 'ArrowRight' || e.key === ' ') { e.preventDefault(); viewerNext(); }
+      else if (e.key === 'ArrowLeft') { e.preventDefault(); viewerPrev(); }
+      else if (e.key === 'Escape') { closeViewer(); }
+    }
+
+    /**
+     * 次の画像へ。
+     */
+    function viewerNext() {
+      if (viewerState.currentIndex < viewerState.images.length - 1) {
+        viewerState.currentIndex++;
+        renderViewerImage();
+      }
+    }
+
+    /**
+     * 前の画像へ。
+     */
+    function viewerPrev() {
+      if (viewerState.currentIndex > 0) {
+        viewerState.currentIndex--;
+        renderViewerImage();
+      }
+    }
+
+    /**
+     * ビューアーに画像を描画する（スタンプ帯付き）。
+     */
+    async function renderViewerImage() {
+      const canvas = document.getElementById('viewer-canvas');
+      if (!canvas) return;
+      const ctx = canvas.getContext('2d');
+      const imgData = viewerState.images[viewerState.currentIndex];
+
+      const img = new Image();
+      await new Promise((resolve) => { img.onload = resolve; img.src = imgData.src; });
+
+      // Canvas サイズ（画面に収まるように）
+      const maxW = window.innerWidth - 16;
+      const maxH = window.innerHeight - 160;
+      let w = img.width;
+      let h = img.height;
+      const scaleW = maxW / w;
+      const scaleH = maxH / h;
+      const scale = Math.min(scaleW, scaleH, 1);
+      w = Math.floor(w * scale);
+      h = Math.floor(h * scale);
+
+      canvas.width = w;
+      canvas.height = h;
+      ctx.drawImage(img, 0, 0, w, h);
+
+      // スタンプ帯を描画
+      drawStamp(ctx, w, h);
+
+      // カウンターとファイル名を更新
+      const counter = document.getElementById('viewer-counter');
+      if (counter) counter.textContent = `${viewerState.currentIndex + 1} / ${viewerState.images.length}`;
+      const fname = document.getElementById('viewer-filename');
+      if (fname) fname.textContent = imgData.file_name;
+    }
+
+    /**
+     * ビューアーからフォトエディターを開く。
+     */
+    function openPhotoEditorFromViewer() {
+      const imgData = viewerState.images[viewerState.currentIndex];
+      closeViewer();
+      openPhotoEditor(imgData.file_id);
+    }
+
+    /**
+     * 加工済み写真をスペースにシェア（再アップロード）する。
+     */
+    async function shareToSpace() {
+      const exportCanvas = document.createElement('canvas');
+      const ctx = exportCanvas.getContext('2d');
+      const img = new Image();
+      img.crossOrigin = 'anonymous';
+      await new Promise((resolve) => { img.onload = resolve; img.src = editorState.imgSrc; });
+
+      const w = img.width;
+      const h = img.height;
+      exportCanvas.width = w;
+      exportCanvas.height = h;
+
+      // フィルター適用
+      const filterKey = editorState.currentFilter;
+      const filter = FILTERS[filterKey];
+
+      if (filterKey === 'glitch') {
+        ctx.drawImage(img, 0, 0, w, h);
+        applyGlitchEffect(ctx, w, h);
+      } else if (filterKey === 'sparkle') {
+        ctx.filter = 'brightness(108%) saturate(120%)';
+        ctx.drawImage(img, 0, 0, w, h);
+        ctx.filter = 'none';
+        applySparkleEffect(ctx, w, h);
+      } else if (filterKey === 'comic') {
+        ctx.filter = 'contrast(200%) saturate(0%)';
+        ctx.drawImage(img, 0, 0, w, h);
+        ctx.filter = 'none';
+        ctx.globalAlpha = 0.08;
+        for (let y = 0; y < h; y += 4) {
+          for (let x = 0; x < w; x += 4) {
+            ctx.fillStyle = (x + y) % 8 === 0 ? '#000' : 'transparent';
+            ctx.fillRect(x, y, 2, 2);
+          }
+        }
+        ctx.globalAlpha = 1.0;
+      } else if (filter && filter.apply) {
+        filter.apply(ctx, w, h);
+        ctx.drawImage(img, 0, 0, w, h);
+        ctx.filter = 'none';
+      } else {
+        ctx.drawImage(img, 0, 0, w, h);
+      }
+
+      // スタンプ付きで保存
+      drawStamp(ctx, w, h);
+
+      // DataURLを取得
+      const dataUrl = exportCanvas.toDataURL('image/jpeg', 0.92);
+      const filterLabel = FILTERS[filterKey]?.label || '';
+      const newFileName = `edited_${filterLabel}_${editorState.fileName}`;
+
+      // IndexedDBに保存（モック）
+      if (USE_MOCK) {
+        const fileId = crypto.randomUUID();
+        // DataURLからサイズを概算
+        const sizeEstimate = Math.floor(dataUrl.length * 0.75);
+        await mockPutItem('files', {
+          file_id: fileId,
+          space_id: appState.spaceId,
+          file_name: newFileName,
+          content_type: 'image/jpeg',
+          file_size: sizeEstimate,
+          data_url: dataUrl,
+          uploaded_at: new Date().toISOString()
+        });
+      }
+
+      // エディターを閉じてファイル一覧をリロード
+      closePhotoEditor();
+      await loadFiles(appState.spaceId);
+      alert('✅ 加工済み写真をスペースにシェアしました！');
+    }
+
+    // ===== ヘルパー =====
+    function showFieldError(id, msg) {
+      const el = document.getElementById(id);
+      if (el) { el.textContent = msg; el.classList.remove('hidden'); }
+    }
+    function hideError(id) {
+      const el = document.getElementById(id);
+      if (el) el.classList.add('hidden');
+    }
+    function showAlert(id, msg) {
+      const el = document.getElementById(id);
+      if (el) { el.textContent = msg; el.classList.remove('hidden'); }
+    }
+  </script>
+</body>
+</html>
