@@ -635,6 +635,85 @@
       transition: transform 0.2s;
     }
     .toggle-switch.active::after { transform: translateX(20px); }
+
+    /* スライドショー */
+    .slideshow-overlay {
+      position: fixed;
+      top: 0; left: 0; right: 0; bottom: 0;
+      background: #000;
+      z-index: 500;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      justify-content: center;
+    }
+    .slideshow-canvas {
+      max-width: 100%;
+      max-height: 100%;
+      object-fit: contain;
+      transition: opacity 0.8s ease-in-out;
+    }
+    .slideshow-canvas.fade-out { opacity: 0; }
+    .slideshow-canvas.fade-in { opacity: 1; }
+    .slideshow-controls {
+      position: absolute;
+      bottom: 0; left: 0; right: 0;
+      display: flex;
+      justify-content: center;
+      align-items: center;
+      gap: 12px;
+      padding: 16px;
+      background: linear-gradient(transparent, rgba(0,0,0,0.8));
+      opacity: 1;
+      transition: opacity 0.3s;
+    }
+    .slideshow-overlay.hide-controls .slideshow-controls { opacity: 0; }
+    .slideshow-controls button {
+      min-width: var(--tap-target);
+      min-height: var(--tap-target);
+      border: none;
+      background: rgba(255,255,255,0.2);
+      color: #FFF;
+      border-radius: 50%;
+      font-size: 20px;
+      cursor: pointer;
+    }
+    .slideshow-controls button:active { background: rgba(255,255,255,0.4); }
+    .slideshow-progress {
+      position: absolute;
+      top: 0; left: 0; right: 0;
+      height: 3px;
+      background: rgba(255,255,255,0.2);
+    }
+    .slideshow-progress-bar {
+      height: 100%;
+      background: var(--primary);
+      transition: width linear;
+    }
+    .slideshow-counter {
+      position: absolute;
+      top: 12px;
+      right: 12px;
+      color: rgba(255,255,255,0.7);
+      font-size: 13px;
+      background: rgba(0,0,0,0.5);
+      padding: 4px 10px;
+      border-radius: 12px;
+    }
+    .slideshow-paused {
+      position: absolute;
+      top: 50%; left: 50%;
+      transform: translate(-50%, -50%);
+      font-size: 64px;
+      color: rgba(255,255,255,0.8);
+      pointer-events: none;
+      animation: pausePulse 0.4s ease-out;
+    }
+    @keyframes pausePulse {
+      0% { transform: translate(-50%, -50%) scale(0.5); opacity: 0; }
+      50% { transform: translate(-50%, -50%) scale(1.2); opacity: 1; }
+      100% { transform: translate(-50%, -50%) scale(1); opacity: 0.8; }
+    }
   </style>
 </head>
 <body>
@@ -2144,7 +2223,10 @@
         <div class="viewer-header">
           <button onclick="closeViewer()">✕ 閉じる</button>
           <span id="viewer-filename" style="font-size:12px; opacity:0.8;"></span>
-          <button onclick="openPhotoEditorFromViewer()">🎨 加工</button>
+          <div style="display:flex; gap:6px;">
+            <button onclick="startSlideshow()" style="font-size:12px;">▶️ スライドショー</button>
+            <button onclick="openPhotoEditorFromViewer()" style="font-size:12px;">🎨 加工</button>
+          </div>
         </div>
         <div class="viewer-body" id="viewer-body">
           <button class="viewer-nav prev" onclick="viewerPrev()">‹</button>
@@ -2470,6 +2552,193 @@
       const backdrop = document.getElementById('comment-backdrop');
       if (modal) modal.remove();
       if (backdrop) backdrop.remove();
+    }
+
+    // ===== スライドショー =====
+    let slideshowState = { running: false, paused: false, timer: null, interval: 4000, index: 0 };
+
+    /**
+     * スライドショーを開始する。
+     */
+    async function startSlideshow() {
+      const images = viewerState.images;
+      if (!images || images.length === 0) return;
+
+      slideshowState = { running: true, paused: false, timer: null, interval: 4000, index: viewerState.currentIndex };
+
+      // オーバーレイ作成
+      const overlay = document.createElement('div');
+      overlay.id = 'slideshow-overlay';
+      overlay.className = 'slideshow-overlay';
+      overlay.innerHTML = `
+        <div class="slideshow-progress"><div class="slideshow-progress-bar" id="ss-progress"></div></div>
+        <span class="slideshow-counter" id="ss-counter"></span>
+        <canvas id="ss-canvas" class="slideshow-canvas fade-in"></canvas>
+        <div class="slideshow-controls">
+          <button onclick="slideshowPrev()">⏮</button>
+          <button onclick="toggleSlideshow()" id="ss-play-btn">⏸</button>
+          <button onclick="slideshowNext()">⏭</button>
+          <button onclick="stopSlideshow()">✕</button>
+        </div>
+      `;
+      document.body.appendChild(overlay);
+
+      // タップで一時停止/再開
+      overlay.addEventListener('click', (e) => {
+        if (e.target === overlay || e.target.tagName === 'CANVAS') {
+          toggleSlideshow();
+        }
+      });
+
+      // フルスクリーン試行
+      try {
+        if (overlay.requestFullscreen) await overlay.requestFullscreen();
+        else if (overlay.webkitRequestFullscreen) await overlay.webkitRequestFullscreen();
+      } catch (e) { /* フルスクリーン非対応でも続行 */ }
+
+      // 最初の画像を表示
+      await renderSlideshowImage();
+      scheduleSlideshowNext();
+    }
+
+    /**
+     * スライドショーを停止する。
+     */
+    function stopSlideshow() {
+      slideshowState.running = false;
+      clearTimeout(slideshowState.timer);
+
+      // フルスクリーン解除
+      if (document.exitFullscreen) document.exitFullscreen().catch(() => {});
+      else if (document.webkitExitFullscreen) document.webkitExitFullscreen();
+
+      const overlay = document.getElementById('slideshow-overlay');
+      if (overlay) overlay.remove();
+    }
+
+    /**
+     * 一時停止/再開トグル。
+     */
+    function toggleSlideshow() {
+      if (!slideshowState.running) return;
+      const btn = document.getElementById('ss-play-btn');
+      const overlay = document.getElementById('slideshow-overlay');
+
+      if (slideshowState.paused) {
+        // 再開
+        slideshowState.paused = false;
+        if (btn) btn.textContent = '⏸';
+        // 一時停止アイコンを消す
+        const pauseIcon = overlay?.querySelector('.slideshow-paused');
+        if (pauseIcon) pauseIcon.remove();
+        scheduleSlideshowNext();
+      } else {
+        // 一時停止
+        slideshowState.paused = true;
+        clearTimeout(slideshowState.timer);
+        if (btn) btn.textContent = '▶️';
+        // 一時停止アイコン表示
+        if (overlay) {
+          const icon = document.createElement('div');
+          icon.className = 'slideshow-paused';
+          icon.textContent = '⏸';
+          overlay.appendChild(icon);
+        }
+      }
+    }
+
+    /**
+     * 次の画像に切り替える。
+     */
+    async function slideshowNext() {
+      const images = viewerState.images;
+      slideshowState.index = (slideshowState.index + 1) % images.length;
+      await transitionSlideshowImage();
+      if (!slideshowState.paused) scheduleSlideshowNext();
+    }
+
+    /**
+     * 前の画像に切り替える。
+     */
+    async function slideshowPrev() {
+      const images = viewerState.images;
+      slideshowState.index = (slideshowState.index - 1 + images.length) % images.length;
+      await transitionSlideshowImage();
+      if (!slideshowState.paused) scheduleSlideshowNext();
+    }
+
+    /**
+     * 次の画像切り替えをスケジュールする。
+     */
+    function scheduleSlideshowNext() {
+      clearTimeout(slideshowState.timer);
+      // プログレスバー
+      const bar = document.getElementById('ss-progress');
+      if (bar) {
+        bar.style.transition = 'none';
+        bar.style.width = '0%';
+        requestAnimationFrame(() => {
+          bar.style.transition = `width ${slideshowState.interval}ms linear`;
+          bar.style.width = '100%';
+        });
+      }
+      slideshowState.timer = setTimeout(() => slideshowNext(), slideshowState.interval);
+    }
+
+    /**
+     * フェードトランジション付きで画像を切り替える。
+     */
+    async function transitionSlideshowImage() {
+      const canvas = document.getElementById('ss-canvas');
+      if (!canvas) return;
+
+      // フェードアウト
+      canvas.classList.remove('fade-in');
+      canvas.classList.add('fade-out');
+      await new Promise(r => setTimeout(r, 400));
+
+      // 画像描画
+      await renderSlideshowImage();
+
+      // フェードイン
+      canvas.classList.remove('fade-out');
+      canvas.classList.add('fade-in');
+    }
+
+    /**
+     * スライドショーのCanvasに画像を描画する。
+     */
+    async function renderSlideshowImage() {
+      const canvas = document.getElementById('ss-canvas');
+      if (!canvas) return;
+      const ctx = canvas.getContext('2d');
+      const images = viewerState.images;
+      const imgData = images[slideshowState.index];
+
+      const img = new Image();
+      await new Promise((resolve) => { img.onload = resolve; img.src = imgData.src; });
+
+      // 画面サイズに合わせる
+      const maxW = window.innerWidth;
+      const maxH = window.innerHeight;
+      let w = img.width, h = img.height;
+      const scale = Math.min(maxW / w, maxH / h, 1);
+      w = Math.floor(w * scale);
+      h = Math.floor(h * scale);
+
+      canvas.width = w;
+      canvas.height = h;
+      ctx.drawImage(img, 0, 0, w, h);
+
+      // スタンプ（加工済みでなければ）
+      const isStamped = imgData.file_name.startsWith('shareit_') || imgData.file_name.startsWith('edited_');
+      if (!isStamped) {
+        drawStamp(ctx, w, h);
+      }
+
+      // カウンター更新
+      const counter = document.getElementById('ss-counter');
+      if (counter) counter.textContent = `${slideshowState.index + 1} / ${images.length}`;
     }
 
     /**
