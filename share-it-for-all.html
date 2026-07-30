@@ -1169,10 +1169,18 @@
         if (reactData) {
           const parsed = JSON.parse(reactData);
           const totalEmojis = Object.values(parsed.emojis || {}).reduce((a,b) => a+b, 0);
-          const totalComments = (parsed.comments || []).length;
+          const comments = parsed.comments || [];
+          const totalComments = comments.filter(c => c.text).length;
           if (totalEmojis > 0 || totalComments > 0) {
-            const topEmoji = Object.entries(parsed.emojis || {}).sort((a,b) => b[1]-a[1])[0];
-            reactBadge = `<span style="position:absolute;top:2px;right:2px;background:rgba(0,0,0,0.7);color:#FFF;border-radius:10px;padding:1px 5px;font-size:10px;z-index:3;">${topEmoji ? topEmoji[0] : '💬'}${totalEmojis + totalComments}</span>`;
+            // 上部: 人気絵文字 + カウント
+            const topEmojis = Object.entries(parsed.emojis || {}).sort((a,b) => b[1]-a[1]).slice(0, 3).map(e => e[0]).join('');
+            reactBadge = `<span style="position:absolute;top:2px;right:2px;background:rgba(0,0,0,0.75);color:#FFF;border-radius:10px;padding:2px 6px;font-size:11px;z-index:3;">${topEmojis || '💬'} ${totalEmojis + totalComments}</span>`;
+            // 最新コメントプレビュー（あれば）
+            const lastComment = comments.filter(c => c.text).slice(-1)[0];
+            if (lastComment) {
+              const preview = lastComment.text.length > 12 ? lastComment.text.slice(0, 12) + '…' : lastComment.text;
+              reactBadge += `<span style="position:absolute;top:22px;right:2px;background:rgba(0,0,0,0.7);color:#FFF;border-radius:8px;padding:1px 5px;font-size:9px;z-index:3;max-width:90%;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;">💬${preview}</span>`;
+            }
           }
         }
 
@@ -1891,6 +1899,8 @@
       reactions.comments.push({ emoji, text: '', name: '', time: Date.now() });
       saveReactions(editorState.fileId, reactions);
       renderEditorReactionBar();
+      // ファイル一覧のバッジも更新
+      renderFileList(appState.files);
     }
 
     /**
@@ -1938,6 +1948,8 @@
 
       closeCommentModal();
       renderEditorReactionBar();
+      // ファイル一覧のバッジも更新
+      renderFileList(appState.files);
     }
 
     /**
