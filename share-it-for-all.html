@@ -535,31 +535,34 @@
     /* ポップアップリアクション（写真の周り） */
     .reaction-bubble {
       position: absolute;
-      background: #FFF;
-      border-radius: 16px;
-      padding: 4px 8px;
-      font-size: 12px;
-      box-shadow: 0 2px 8px rgba(0,0,0,0.2);
+      background: rgba(0, 0, 0, 0.75);
+      color: #FFF;
+      border-radius: 20px;
+      padding: 5px 10px;
+      font-size: 13px;
+      box-shadow: 0 2px 12px rgba(0,0,0,0.4);
       animation: bubblePop 0.4s ease-out;
       white-space: nowrap;
-      max-width: 160px;
+      max-width: 180px;
       overflow: hidden;
       text-overflow: ellipsis;
       z-index: 5;
+      border: 1px solid rgba(255,255,255,0.2);
     }
     .reaction-bubble::after {
       content: '';
       position: absolute;
       width: 8px; height: 8px;
-      background: #FFF;
+      background: rgba(0, 0, 0, 0.75);
       transform: rotate(45deg);
       bottom: -4px;
       left: 20px;
-      box-shadow: 2px 2px 4px rgba(0,0,0,0.1);
+      border-right: 1px solid rgba(255,255,255,0.2);
+      border-bottom: 1px solid rgba(255,255,255,0.2);
     }
-    .reaction-bubble .bubble-emoji { font-size: 14px; }
-    .reaction-bubble .bubble-text { color: #333; margin-left: 4px; }
-    .reaction-bubble .bubble-name { color: #999; font-size: 10px; margin-left: 4px; }
+    .reaction-bubble .bubble-emoji { font-size: 15px; }
+    .reaction-bubble .bubble-text { color: #FFF; margin-left: 4px; }
+    .reaction-bubble .bubble-name { color: rgba(255,255,255,0.6); font-size: 10px; margin-left: 4px; }
     @keyframes bubblePop {
       0% { transform: scale(0) translateY(10px); opacity: 0; }
       60% { transform: scale(1.1) translateY(-2px); opacity: 1; }
@@ -1160,11 +1163,25 @@
       let html = '<div class="file-grid">';
       for (const file of files) {
         const clickAction = file.thumbnail_url ? `openPhotoEditor('${file.file_id}')` : `handleDownloadFile('${file.file_id}')`;
+        // リアクションカウントを取得
+        const reactData = localStorage.getItem(`reactions_${file.file_id}`);
+        let reactBadge = '';
+        if (reactData) {
+          const parsed = JSON.parse(reactData);
+          const totalEmojis = Object.values(parsed.emojis || {}).reduce((a,b) => a+b, 0);
+          const totalComments = (parsed.comments || []).length;
+          if (totalEmojis > 0 || totalComments > 0) {
+            const topEmoji = Object.entries(parsed.emojis || {}).sort((a,b) => b[1]-a[1])[0];
+            reactBadge = `<span style="position:absolute;top:2px;right:2px;background:rgba(0,0,0,0.7);color:#FFF;border-radius:10px;padding:1px 5px;font-size:10px;z-index:3;">${topEmoji ? topEmoji[0] : '💬'}${totalEmojis + totalComments}</span>`;
+          }
+        }
+
         if (file.thumbnail_url) {
           html += `
             <div class="file-item" onclick="${clickAction}">
               <img src="${file.thumbnail_url}" alt="${file.file_name}" loading="lazy">
               <span class="file-name">${file.file_name}</span>
+              ${reactBadge}
             </div>`;
         } else {
           const icon = file.content_type?.startsWith('video') ? '🎬' : '📄';
@@ -1172,6 +1189,7 @@
             <div class="file-item" onclick="${clickAction}">
               <div class="file-icon">${icon}</div>
               <span class="file-name">${file.file_name}</span>
+              ${reactBadge}
             </div>`;
         }
       }
@@ -1690,6 +1708,7 @@
           <button style="background:var(--primary);color:#FFF;" onclick="downloadWithStamp()">📥 スタンプ付き保存</button>
           <button style="background:var(--success);color:#FFF;" onclick="shareToSpace()">📤 スペースにシェア</button>
         </div>
+        <div class="reaction-bar" id="editor-reaction-bar"></div>
         <div class="photo-actions">
           <button style="background:${editorState.isPremium ? '#6C63FF' : '#888'};color:#FFF;" onclick="downloadNoStamp()">
             ${editorState.isPremium ? '👑 スタンプなし保存' : '👑 スタンプなし (Pro)'}
@@ -1703,6 +1722,9 @@
 
       // Canvas に画像を描画
       await drawPhotoOnCanvas();
+
+      // エディター内リアクションバー描画
+      renderEditorReactionBar();
     }
 
     /**
@@ -1840,9 +1862,134 @@
     }
 
     /**
-     * スタンプ付きで保存する。
+     * エディター内のリアクションバーを描画する。
+     */
+    async function renderEditorReactionBar() {
+      const bar = document.getElementById('editor-reaction-bar');
+      if (!bar) return;
+      const reactions = await getReactions(editorState.fileId);
+
+      let html = '';
+      for (const emoji of REACTION_EMOJIS) {
+        const count = reactions.emojis[emoji] || 0;
+        html += `<div class="reaction-emoji-wrap">
+          <button class="reaction-emoji" onclick="addEditorReaction('${emoji}')">${emoji}</button>
+          ${count > 0 ? `<span class="count">${count}</span>` : ''}
+        </div>`;
+      }
+      html += `<button class="comment-btn" onclick="openEditorCommentModal()">💬</button>`;
+      bar.innerHTML = html;
+    }
+
+    /**
+     * エディター内で絵文字リアクションを追加する。
+     */
+    async function addEditorReaction(emoji) {
+      const reactions = await getReactions(editorState.fileId);
+      if (!reactions.emojis[emoji]) reactions.emojis[emoji] = 0;
+      reactions.emojis[emoji]++;
+      reactions.comments.push({ emoji, text: '', name: '', time: Date.now() });
+      saveReactions(editorState.fileId, reactions);
+      renderEditorReactionBar();
+    }
+
+    /**
+     * エディター内コメントモーダルを開く。
+     */
+    function openEditorCommentModal() {
+      const backdrop = document.createElement('div');
+      backdrop.className = 'comment-modal-backdrop';
+      backdrop.id = 'comment-backdrop';
+      backdrop.onclick = closeCommentModal;
+      document.body.appendChild(backdrop);
+
+      const modal = document.createElement('div');
+      modal.className = 'comment-modal';
+      modal.id = 'comment-modal';
+      modal.innerHTML = `
+        <h3 style="font-size:16px; margin-bottom:12px;">💬 コメントを残す</h3>
+        <textarea class="comment-input" id="comment-text" placeholder="一言コメント..." maxlength="100"></textarea>
+        <div class="name-toggle">
+          <div class="toggle-switch" id="name-toggle" onclick="toggleNameInput()"></div>
+          <span id="name-label">無記名</span>
+          <input type="text" id="comment-name" placeholder="名前を入力" maxlength="20" style="display:none;">
+        </div>
+        <div style="display:flex; gap:8px;">
+          <button class="btn btn-primary" style="flex:1;" onclick="submitEditorComment()">送信</button>
+          <button class="btn btn-outline" style="flex:1;" onclick="closeCommentModal()">キャンセル</button>
+        </div>
+      `;
+      document.body.appendChild(modal);
+    }
+
+    /**
+     * エディター内コメント送信。
+     */
+    async function submitEditorComment() {
+      const text = document.getElementById('comment-text').value.trim();
+      if (!text) { alert('コメントを入力してください'); return; }
+      const toggle = document.getElementById('name-toggle');
+      const isNamed = toggle.classList.contains('active');
+      const name = isNamed ? (document.getElementById('comment-name').value.trim() || '匿名') : '匿名';
+
+      const reactions = await getReactions(editorState.fileId);
+      reactions.comments.push({ emoji: '💬', text, name, time: Date.now() });
+      saveReactions(editorState.fileId, reactions);
+
+      closeCommentModal();
+      renderEditorReactionBar();
+    }
+
+    /**
+     * リアクション絵文字を画像に焼き込む。
+     */
+    function drawReactionsOnImage(ctx, w, h, fileId) {
+      const reactData = localStorage.getItem(`reactions_${fileId}`);
+      if (!reactData) return;
+      const parsed = JSON.parse(reactData);
+      const comments = parsed.comments || [];
+      if (comments.length === 0) return;
+
+      // 最新6件を写真の上部に横並びで表示
+      const recent = comments.slice(-6);
+      const startX = 10;
+      const startY = 30;
+      const chipH = Math.max(24, Math.floor(h * 0.04));
+      const fontSize = Math.max(12, Math.floor(chipH * 0.7));
+
+      recent.forEach((item, i) => {
+        const x = startX + (i % 3) * (w * 0.33);
+        const y = startY + Math.floor(i / 3) * (chipH + 8);
+
+        // 背景チップ
+        const label = item.emoji + (item.text ? ' ' + item.text.slice(0, 8) : '');
+        ctx.font = `bold ${fontSize}px sans-serif`;
+        const textW = ctx.measureText(label).width + 16;
+
+        ctx.fillStyle = 'rgba(0, 0, 0, 0.6)';
+        ctx.beginPath();
+        ctx.roundRect(x, y, textW, chipH, chipH / 2);
+        ctx.fill();
+
+        ctx.fillStyle = '#FFF';
+        ctx.textAlign = 'left';
+        ctx.textBaseline = 'middle';
+        ctx.fillText(label, x + 8, y + chipH / 2);
+      });
+    }
+
+    /**
+     * スタンプ付きで保存する（絵文字入り/なし選択付き）。
      */
     async function downloadWithStamp() {
+      const reactions = await getReactions(editorState.fileId);
+      const hasReactions = (reactions.comments || []).length > 0;
+
+      let includeReactions = false;
+      if (hasReactions) {
+        includeReactions = confirm('リアクション（絵文字・コメント）を写真に含めますか？\n\n「OK」→ 絵文字入り\n「キャンセル」→ 絵文字なし');
+      }
+
       const exportCanvas = document.createElement('canvas');
       const ctx = exportCanvas.getContext('2d');
       const img = new Image();
@@ -1858,6 +2005,10 @@
       applyPixelFilter(ctx, w, h, editorState.currentFilter);
       if (editorState.currentFilter === 'glitch') applyGlitchEffect(ctx, w, h);
       if (editorState.currentFilter === 'sparkle') applySparkleEffect(ctx, w, h);
+
+      if (includeReactions) {
+        drawReactionsOnImage(ctx, w, h, editorState.fileId);
+      }
 
       drawStamp(ctx, w, h);
 
