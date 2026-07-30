@@ -2329,6 +2329,13 @@
       // スタンプ帯を描画（加工済み写真には重ねない）
       const isAlreadyStamped = imgData.file_name.startsWith('shareit_') || imgData.file_name.startsWith('edited_');
       if (!isAlreadyStamped) {
+        // spaceInfoにkeywordがなければIndexedDBから取得
+        if (!appState.spaceInfo?.keyword && USE_MOCK && appState.spaceId) {
+          const space = await mockGetSpace(appState.spaceId);
+          if (space && space.keyword) {
+            appState.spaceInfo = { ...appState.spaceInfo, keyword: space.keyword, date_code: space.date_code };
+          }
+        }
         drawStamp(ctx, w, h);
       }
 
@@ -2757,6 +2764,12 @@
       // スタンプ（加工済みでなければ）
       const isStamped = imgData.file_name.startsWith('shareit_') || imgData.file_name.startsWith('edited_');
       if (!isStamped) {
+        if (!appState.spaceInfo?.keyword && USE_MOCK && appState.spaceId) {
+          const space = await mockGetSpace(appState.spaceId);
+          if (space && space.keyword) {
+            appState.spaceInfo = { ...appState.spaceInfo, keyword: space.keyword, date_code: space.date_code };
+          }
+        }
         drawStamp(ctx, w, h);
       }
 
