@@ -1914,7 +1914,7 @@
     /**
      * スタンプを描画する（合言葉入り — 大きく斜体で目立つ）。
      */
-    async function await drawStamp(ctx, width, height) {
+    async function drawStamp(ctx, width, height) {
       const space = appState.spaceInfo;
       let dateCode = space?.date_code || '------';
       // マスクなしの合言葉を表示（拡散効果のため）
