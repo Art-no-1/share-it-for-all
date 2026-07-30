@@ -1,4 +1,4 @@
-<!DOCTYPE html>
+﻿<!DOCTYPE html>
 <html lang="ja">
 <head>
   <meta charset="UTF-8">
@@ -1269,6 +1269,7 @@
               <img src="${file.thumbnail_url}" alt="${file.file_name}" loading="lazy">
               <span class="file-name">${file.file_name}</span>
               ${reactBadge}
+              ${canDelete(file.file_id) ? `<button onclick="event.stopPropagation(); deleteFile('${file.file_id}')" style="position:absolute;top:2px;left:2px;background:rgba(220,53,69,0.85);color:#FFF;border:none;border-radius:50%;width:22px;height:22px;font-size:12px;cursor:pointer;z-index:4;">✕</button>` : ''}
             </div>`;
         } else {
           const icon = file.content_type?.startsWith('video') ? '🎬' : '📄';
@@ -1277,6 +1278,7 @@
               <div class="file-icon">${icon}</div>
               <span class="file-name">${file.file_name}</span>
               ${reactBadge}
+              ${canDelete(file.file_id) ? `<button onclick="event.stopPropagation(); deleteFile('${file.file_id}')" style="position:absolute;top:2px;left:2px;background:rgba(220,53,69,0.85);color:#FFF;border:none;border-radius:50%;width:22px;height:22px;font-size:12px;cursor:pointer;z-index:4;">✕</button>` : ''}
             </div>`;
         }
       }
@@ -1349,6 +1351,8 @@
               data_url: dataUrl,
               uploaded_at: new Date().toISOString()
             });
+            // 削除キーをLocalStorageに保存（このブラウザでのみ削除可能に）
+            saveDeleteKey(upload.file_id);
             const bar = document.getElementById(`prog-${upload.file_id}`);
             if (bar) bar.style.width = '100%';
             completedIds.push(upload.file_id);
@@ -1515,13 +1519,13 @@
     function applyStampToImage(imgSrc) {
       return new Promise((resolve) => {
         const img = new Image();
-        img.onload = () => {
+        img.onload = async () => {
           const canvas = document.createElement('canvas');
           const ctx = canvas.getContext('2d');
           canvas.width = img.width;
           canvas.height = img.height;
           ctx.drawImage(img, 0, 0);
-          drawStamp(ctx, img.width, img.height);
+          await drawStamp(ctx, img.width, img.height);
           resolve(canvas.toDataURL('image/jpeg', 0.92));
         };
         img.src = imgSrc;
@@ -1910,11 +1914,22 @@
     /**
      * スタンプを描画する（合言葉入り — 大きく斜体で目立つ）。
      */
-    function drawStamp(ctx, width, height) {
+    async function await drawStamp(ctx, width, height) {
       const space = appState.spaceInfo;
-      const dateCode = space?.date_code || '------';
+      let dateCode = space?.date_code || '------';
       // マスクなしの合言葉を表示（拡散効果のため）
-      const keyword = space?.keyword || space?.keyword_display || '***';
+      let keyword = space?.keyword || space?.keyword_display || '***';
+
+      // keywordが***や未設定ならIndexedDBから取得を試みる
+      if ((keyword === '***' || keyword.endsWith('***')) && USE_MOCK && appState.spaceId) {
+        try {
+          const dbSpace = await mockGetSpace(appState.spaceId);
+          if (dbSpace && dbSpace.keyword) {
+            keyword = dbSpace.keyword;
+            dateCode = dbSpace.date_code || dateCode;
+          }
+        } catch(e) {}
+      }
 
       // 大きめの半透明帯（画像高さの12%、最低60px）
       const bandHeight = Math.max(60, Math.floor(height * 0.12));
@@ -2142,7 +2157,7 @@
         drawReactionsOnImage(ctx, w, h, editorState.fileId);
       }
 
-      drawStamp(ctx, w, h);
+      await drawStamp(ctx, w, h);
 
       const dataUrl = exportCanvas.toDataURL('image/jpeg', 0.92);
       const a = document.createElement('a');
@@ -2336,7 +2351,7 @@
             appState.spaceInfo = { ...appState.spaceInfo, keyword: space.keyword, date_code: space.date_code };
           }
         }
-        drawStamp(ctx, w, h);
+        await drawStamp(ctx, w, h);
       }
 
       // カウンターとファイル名を更新
@@ -2770,7 +2785,7 @@
             appState.spaceInfo = { ...appState.spaceInfo, keyword: space.keyword, date_code: space.date_code };
           }
         }
-        drawStamp(ctx, w, h);
+        await drawStamp(ctx, w, h);
       }
 
       // カウンター更新
@@ -2799,7 +2814,7 @@
       if (editorState.currentFilter === 'sparkle') applySparkleEffect(ctx, w, h);
 
       // スタンプ付きで保存
-      drawStamp(ctx, w, h);
+      await drawStamp(ctx, w, h);
 
       // DataURLを取得
       const dataUrl = exportCanvas.toDataURL('image/jpeg', 0.92);
@@ -2829,6 +2844,53 @@
     }
 
     // ===== ヘルパー =====
+
+    // --- 削除キー管理 ---
+    /**
+     * アップロード時に削除キーを保存する。
+     */
+    function saveDeleteKey(fileId) {
+      const keys = JSON.parse(localStorage.getItem('share_it_my_files') || '[]');
+      if (!keys.includes(fileId)) {
+        keys.push(fileId);
+        localStorage.setItem('share_it_my_files', JSON.stringify(keys));
+      }
+    }
+
+    /**
+     * このブラウザでアップしたファイルか判定する。
+     */
+    function canDelete(fileId) {
+      const keys = JSON.parse(localStorage.getItem('share_it_my_files') || '[]');
+      return keys.includes(fileId);
+    }
+
+    /**
+     * ファイルを削除する。
+     */
+    async function deleteFile(fileId) {
+      if (!confirm('この写真を削除しますか？')) return;
+
+      if (USE_MOCK) {
+        // IndexedDBから削除
+        try {
+          const tx = mockDb.transaction('files', 'readwrite');
+          tx.objectStore('files').delete(fileId);
+          await new Promise((resolve, reject) => { tx.oncomplete = resolve; tx.onerror = reject; });
+        } catch(e) {}
+
+        // リアクションデータも削除
+        localStorage.removeItem(`reactions_${fileId}`);
+
+        // 削除キーリストからも除去
+        const keys = JSON.parse(localStorage.getItem('share_it_my_files') || '[]');
+        localStorage.setItem('share_it_my_files', JSON.stringify(keys.filter(k => k !== fileId)));
+      }
+
+      // ファイル一覧を再読み込み
+      await loadFiles(appState.spaceId);
+    }
+
     function showFieldError(id, msg) {
       const el = document.getElementById(id);
       if (el) { el.textContent = msg; el.classList.remove('hidden'); }
