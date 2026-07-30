@@ -2578,6 +2578,7 @@
           <button onclick="slideshowPrev()">⏮</button>
           <button onclick="toggleSlideshow()" id="ss-play-btn">⏸</button>
           <button onclick="slideshowNext()">⏭</button>
+          <button onclick="cycleSpeed()" id="ss-speed-btn" style="font-size:12px;border-radius:12px;padding:0 10px;">4秒</button>
           <button onclick="stopSlideshow()">✕</button>
         </div>
       `;
@@ -2683,6 +2684,29 @@
         });
       }
       slideshowState.timer = setTimeout(() => slideshowNext(), slideshowState.interval);
+    }
+
+    const SPEED_OPTIONS = [
+      { label: '2秒', value: 2000 },
+      { label: '4秒', value: 4000 },
+      { label: '6秒', value: 6000 },
+      { label: '8秒', value: 8000 },
+    ];
+    let speedIndex = 1; // デフォルト4秒
+
+    /**
+     * スライドショー速度を切り替える。
+     */
+    function cycleSpeed() {
+      speedIndex = (speedIndex + 1) % SPEED_OPTIONS.length;
+      const speed = SPEED_OPTIONS[speedIndex];
+      slideshowState.interval = speed.value;
+      const btn = document.getElementById('ss-speed-btn');
+      if (btn) btn.textContent = speed.label;
+      // 現在のタイマーをリセットして新しい速度で再スケジュール
+      if (!slideshowState.paused) {
+        scheduleSlideshowNext();
+      }
     }
 
     /**
