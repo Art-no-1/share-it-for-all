@@ -3321,11 +3321,11 @@
         } else {
           imgEl.src = file.thumbnail_url || '';
         }
-        // 回転演出
-        frame.style.transform = `rotate(${count * 15}deg) scale(${1 + Math.sin(count * 0.3) * 0.05})`;
+        // 回転演出（360度ちょうどで止まるように）
+        frame.style.transform = `rotate(${count * (360 / totalSpins)}deg) scale(${1 + Math.sin(count * 0.3) * 0.05})`;
         count++;
         // だんだん遅くなる
-        const delay = 50 + count * 15;
+        const delay = 40 + count * 14;
         setTimeout(doSpin, delay);
       };
       doSpin();
