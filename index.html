@@ -3029,6 +3029,12 @@
         </div>
       `;
       document.body.appendChild(overlay);
+
+      // 復元した設定をUIに反映
+      renderPrizeList();
+      if (rouletteState.missionMode === 'on') {
+        setMissionMode('on');
+      }
     }
 
     function addPrize() {
@@ -3133,8 +3139,11 @@
         missions = AUTO_MISSIONS.filter((_, i) => autoMissionEnabled[i]);
       }
 
+      // prizes から awarded を除いて保存（設定のみ保存）
+      const cleanPrizes = rouletteState.prizes.map(p => ({ name: p.name, count: p.count }));
+
       const settings = {
-        prizes: rouletteState.prizes,
+        prizes: cleanPrizes,
         missionMode: rouletteState.missionMode,
         missions: missions,
       };
