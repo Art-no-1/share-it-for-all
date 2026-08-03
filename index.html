@@ -3053,12 +3053,26 @@
         el.innerHTML = '<p style="color:rgba(255,255,255,0.4); font-size:12px;">商品未設定（純粋なルーレットとして使用）</p>';
         return;
       }
-      el.innerHTML = rouletteState.prizes.map((p, i) => `
-        <div style="display:flex; justify-content:space-between; align-items:center; padding:6px 0; border-bottom:1px solid rgba(255,255,255,0.1);">
-          <span style="color:#FFF; font-size:13px;">🎁 ${p.name} × ${p.count}</span>
-          <button onclick="removePrize(${i})" style="background:none; border:none; color:#F38181; cursor:pointer; font-size:16px;">✕</button>
+      el.innerHTML = `
+        <p style="color:rgba(255,255,255,0.5); font-size:11px; margin-bottom:6px;">⬇ 下から順に抽選されます（最後が一番良い賞）</p>
+      ` + rouletteState.prizes.map((p, i) => `
+        <div style="display:flex; align-items:center; gap:6px; padding:8px 4px; border-bottom:1px solid rgba(255,255,255,0.1); background:rgba(255,255,255,${i === rouletteState.prizes.length - 1 ? '0.08' : '0.02'});">
+          <span style="color:rgba(255,255,255,0.4); font-size:11px; min-width:20px;">${i + 1}</span>
+          <span style="color:#FFF; font-size:13px; flex:1;">🎁 ${p.name} × ${p.count}</span>
+          <button onclick="movePrize(${i}, -1)" style="background:none; border:none; color:#FFF; cursor:pointer; font-size:14px; opacity:${i === 0 ? '0.2' : '1'};" ${i === 0 ? 'disabled' : ''}>▲</button>
+          <button onclick="movePrize(${i}, 1)" style="background:none; border:none; color:#FFF; cursor:pointer; font-size:14px; opacity:${i === rouletteState.prizes.length - 1 ? '0.2' : '1'};" ${i === rouletteState.prizes.length - 1 ? 'disabled' : ''}>▼</button>
+          <button onclick="removePrize(${i})" style="background:none; border:none; color:#F38181; cursor:pointer; font-size:14px;">✕</button>
         </div>
       `).join('');
+    }
+
+    function movePrize(idx, direction) {
+      const newIdx = idx + direction;
+      if (newIdx < 0 || newIdx >= rouletteState.prizes.length) return;
+      const temp = rouletteState.prizes[idx];
+      rouletteState.prizes[idx] = rouletteState.prizes[newIdx];
+      rouletteState.prizes[newIdx] = temp;
+      renderPrizeList();
     }
 
     function setMissionMode(mode) {
@@ -3195,7 +3209,9 @@
     }
 
     function getCurrentPrize() {
-      for (const prize of rouletteState.prizes) {
+      // 下（末尾）から順に抽選する（最後=一番良い賞が最後に当たる）
+      for (let i = rouletteState.prizes.length - 1; i >= 0; i--) {
+        const prize = rouletteState.prizes[i];
         if (prize.awarded < prize.count) return prize;
       }
       return null;
