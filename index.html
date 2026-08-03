@@ -1084,6 +1084,12 @@
         });
         appState.spaceId = data.space_id;
         appState.spaceInfo = data;
+        // 作成者フラグをLocalStorageに保存
+        const creatorSpaces = JSON.parse(localStorage.getItem('share_it_creator_spaces') || '[]');
+        if (!creatorSpaces.includes(data.space_id)) {
+          creatorSpaces.push(data.space_id);
+          localStorage.setItem('share_it_creator_spaces', JSON.stringify(creatorSpaces));
+        }
         location.hash = `#space/${data.space_id}`;
       } catch (err) {
         showAlert('create-error', err.message);
@@ -1186,12 +1192,13 @@
           <div id="file-list"><div class="text-center text-light"><div class="spinner"></div></div></div>
         </div>
         <div class="card" style="background:linear-gradient(135deg, #667eea 0%, #764ba2 100%); color:#FFF;">
-          <h3 style="font-size:16px; margin-bottom:12px;">🎉 パーティーモード</h3>
-          <div class="flex-col gap-12">
+          <h3 style="font-size:16px; margin-bottom:12px;">🎪 イベントモード</h3>
+          <div class="flex-col gap-12" id="party-mode-buttons">
             <button class="btn" style="background:rgba(255,255,255,0.2);color:#FFF;border:1px solid rgba(255,255,255,0.4);" onclick="openRoulette()">🎰 写真ルーレット / 抽選</button>
             <button class="btn" style="background:rgba(255,255,255,0.2);color:#FFF;border:1px solid rgba(255,255,255,0.4);" onclick="openTeamSplit()">👥 チーム分け</button>
             <button class="btn" style="background:rgba(255,255,255,0.2);color:#FFF;border:1px solid rgba(255,255,255,0.4);" onclick="openBestShot()">🏆 ベストショット賞</button>
           </div>
+          <p id="party-mode-notice" style="display:none; font-size:12px; opacity:0.7; margin-top:8px;">※ ルーレット設定はスペース作成者のみ変更できます</p>
         </div>
         <a href="#/" class="btn btn-outline">← トップに戻る</a>
       `;
@@ -1199,6 +1206,14 @@
       // ファイル選択イベント
       document.getElementById('file-input').addEventListener('change', handleFileSelect);
       document.getElementById('camera-input').addEventListener('change', handleFileSelect);
+
+      // イベントモード: 作成者以外はルーレット設定を非表示
+      const isCreator = isSpaceCreator(spaceId);
+      if (!isCreator) {
+        const notice = document.getElementById('party-mode-notice');
+        if (notice) notice.style.display = 'block';
+        // 参加者はルーレットを「閲覧モード」で開く（設定変更不可）
+      }
 
       // ファイル一覧読み込み
       await loadFiles(spaceId);
@@ -2899,7 +2914,15 @@
       await loadFiles(appState.spaceId);
     }
 
-    // ===== パーティーモード =====
+    // ===== イベントモード =====
+
+    /**
+     * このブラウザがスペース作成者か判定する。
+     */
+    function isSpaceCreator(spaceId) {
+      const creatorSpaces = JSON.parse(localStorage.getItem('share_it_creator_spaces') || '[]');
+      return creatorSpaces.includes(spaceId);
+    }
 
     // --- ① 写真ルーレット / 抽選 + ② ミッション ---
     let rouletteState = {
@@ -2910,7 +2933,7 @@
       currentPrizeIdx: 0,
     };
 
-    const AUTO_MISSIONS = [
+    let AUTO_MISSIONS = [
       '🎤 一発芸をお願いします！',
       '🍻 隣の人と乾杯！',
       '📸 今の気持ちを一言！',
@@ -2955,6 +2978,11 @@
               <button onclick="setMissionMode('off')" id="mm-off" class="btn" style="flex:1; min-width:80px; padding:8px; font-size:12px; background:rgba(255,255,255,0.2); color:#FFF; border:2px solid #FFF;">なし</button>
               <button onclick="setMissionMode('auto')" id="mm-auto" class="btn" style="flex:1; min-width:80px; padding:8px; font-size:12px; background:transparent; color:#FFF; border:2px solid rgba(255,255,255,0.3);">お任せ</button>
               <button onclick="setMissionMode('custom')" id="mm-custom" class="btn" style="flex:1; min-width:80px; padding:8px; font-size:12px; background:transparent; color:#FFF; border:2px solid rgba(255,255,255,0.3);">自分で設定</button>
+              <button onclick="setMissionMode('mix')" id="mm-mix" class="btn" style="flex:1; min-width:80px; padding:8px; font-size:12px; background:transparent; color:#FFF; border:2px solid rgba(255,255,255,0.3);">お任せ＋追加</button>
+            </div>
+            <div id="auto-mission-area" style="display:none; margin-top:12px;">
+              <p style="color:rgba(255,255,255,0.5); font-size:11px; margin-bottom:6px;">✅ ON / ☐ OFF で使うお題を選択（${AUTO_MISSIONS.length}件）</p>
+              <div id="auto-mission-list" style="max-height:150px; overflow-y:auto;"></div>
             </div>
             <div id="custom-mission-area" style="display:none; margin-top:12px;">
               <textarea id="custom-missions-input" placeholder="1行に1つずつお題を入力&#10;例:&#10;一発芸をお願いします！&#10;隣の人と乾杯！" style="width:100%; min-height:80px; padding:8px; border-radius:6px; border:none; font-size:13px; resize:vertical;"></textarea>
@@ -2969,7 +2997,7 @@
 
         <div id="roulette-main" style="display:none; text-align:center; padding:20px; width:100%;">
           <div id="roulette-prize-label" style="color:#FFD700; font-size:18px; font-weight:bold; margin-bottom:12px;"></div>
-          <div id="roulette-frame" style="width:min(70vw, 350px); height:min(70vw, 350px); margin:0 auto; border-radius:50%; border:6px solid #FFD700; overflow:hidden; position:relative; box-shadow:0 0 50px rgba(255,215,0,0.4); transition: border-color 0.3s, box-shadow 0.3s;">
+          <div id="roulette-frame" style="width:min(70vw, 350px); height:min(70vw, 350px); margin:0 auto; border-radius:50%; border:6px solid #FFD700; overflow:hidden; position:relative; box-shadow:0 0 50px rgba(255,215,0,0.4); transition: border-color 0.3s, box-shadow 0.3s, transform 0.15s;">
             <img id="roulette-img" src="" style="width:100%; height:100%; object-fit:cover;">
           </div>
           <div id="roulette-result-name" style="color:#FFF; font-size:22px; font-weight:bold; margin-top:20px; min-height:32px;"></div>
@@ -3018,23 +3046,67 @@
 
     function setMissionMode(mode) {
       rouletteState.missionMode = mode;
-      ['off', 'auto', 'custom'].forEach(m => {
+      ['off', 'auto', 'custom', 'mix'].forEach(m => {
         const btn = document.getElementById(`mm-${m}`);
         if (btn) {
           btn.style.background = m === mode ? 'rgba(255,255,255,0.2)' : 'transparent';
           btn.style.borderColor = m === mode ? '#FFF' : 'rgba(255,255,255,0.3)';
         }
       });
+      const autoArea = document.getElementById('auto-mission-area');
       const customArea = document.getElementById('custom-mission-area');
-      if (customArea) customArea.style.display = mode === 'custom' ? 'block' : 'none';
+      if (autoArea) autoArea.style.display = (mode === 'auto' || mode === 'mix') ? 'block' : 'none';
+      if (customArea) customArea.style.display = (mode === 'custom' || mode === 'mix') ? 'block' : 'none';
+
+      // お任せ一覧を描画
+      if (mode === 'auto' || mode === 'mix') renderAutoMissionList();
+    }
+
+    let autoMissionEnabled = AUTO_MISSIONS.map(() => true);
+
+    function renderAutoMissionList() {
+      const container = document.getElementById('auto-mission-list');
+      if (!container) return;
+      container.innerHTML = AUTO_MISSIONS.map((m, i) => `
+        <div style="display:flex; align-items:center; gap:6px; padding:4px 0; border-bottom:1px solid rgba(255,255,255,0.08);">
+          <input type="checkbox" ${autoMissionEnabled[i] ? 'checked' : ''} onchange="autoMissionEnabled[${i}]=this.checked" style="width:18px; height:18px; cursor:pointer;">
+          <span style="color:#FFF; font-size:12px; flex:1;">${m}</span>
+          <button onclick="removeAutoMissionItem(${i})" style="background:none; border:none; color:#F38181; cursor:pointer; font-size:14px;">✕</button>
+        </div>
+      `).join('') + `
+        <div style="display:flex; gap:4px; margin-top:8px;">
+          <input type="text" id="new-auto-mission" placeholder="お題を追加..." style="flex:1; padding:6px; border-radius:4px; border:none; font-size:12px;">
+          <button onclick="addAutoMissionItem()" style="padding:6px 10px; border:none; border-radius:4px; background:#4ECDC4; color:#1a1a2e; font-size:12px; font-weight:bold; cursor:pointer;">+追加</button>
+        </div>`;
+    }
+
+    function removeAutoMissionItem(idx) {
+      AUTO_MISSIONS.splice(idx, 1);
+      autoMissionEnabled.splice(idx, 1);
+      renderAutoMissionList();
+    }
+
+    function addAutoMissionItem() {
+      const input = document.getElementById('new-auto-mission');
+      if (!input || !input.value.trim()) return;
+      AUTO_MISSIONS.push(input.value.trim());
+      autoMissionEnabled.push(true);
+      input.value = '';
+      renderAutoMissionList();
     }
 
     function startRouletteMain() {
-      // カスタムミッション取得
-      if (rouletteState.missionMode === 'custom') {
-        const text = document.getElementById('custom-missions-input')?.value || '';
-        rouletteState.customMissions = text.split('\n').map(l => l.trim()).filter(l => l);
+      // ミッションリスト構築
+      let allMissions = [];
+      if (rouletteState.missionMode === 'auto' || rouletteState.missionMode === 'mix') {
+        allMissions = AUTO_MISSIONS.filter((_, i) => autoMissionEnabled[i]);
       }
+      if (rouletteState.missionMode === 'custom' || rouletteState.missionMode === 'mix') {
+        const text = document.getElementById('custom-missions-input')?.value || '';
+        const custom = text.split('\n').map(l => l.trim()).filter(l => l);
+        allMissions = [...allMissions, ...custom];
+      }
+      rouletteState.customMissions = allMissions;
 
       // 設定画面を隠してメイン画面を表示
       document.getElementById('roulette-setup').style.display = 'none';
@@ -3116,6 +3188,7 @@
           }
 
           // 演出
+          frame.style.transform = 'rotate(0deg) scale(1)';
           frame.style.borderColor = '#FF4500';
           frame.style.boxShadow = '0 0 60px rgba(255,69,0,0.7)';
 
@@ -3131,14 +3204,16 @@
           nameEl.textContent = `🎊 当選: ${fileName}`;
 
           // ミッション
-          if (rouletteState.missionMode === 'auto') {
-            const mission = AUTO_MISSIONS[Math.floor(Math.random() * AUTO_MISSIONS.length)];
-            missionEl.textContent = `${prizeName ? prizeName + ' ✦ ' : ''}${mission}`;
-          } else if (rouletteState.missionMode === 'custom' && rouletteState.customMissions.length > 0) {
-            const mission = rouletteState.customMissions[Math.floor(Math.random() * rouletteState.customMissions.length)];
-            missionEl.textContent = `${prizeName ? prizeName + ' ✦ ' : ''}${mission}`;
+          let missionText = '';
+          if (rouletteState.missionMode !== 'off' && rouletteState.customMissions.length > 0) {
+            missionText = rouletteState.customMissions[Math.floor(Math.random() * rouletteState.customMissions.length)];
+          }
+          if (prizeName && missionText) {
+            missionEl.textContent = `${prizeName} ✦ ${missionText}`;
           } else if (prizeName) {
             missionEl.textContent = prizeName;
+          } else if (missionText) {
+            missionEl.textContent = missionText;
           }
 
           // 当選リストに追加
@@ -3164,6 +3239,8 @@
         } else {
           imgEl.src = file.thumbnail_url || '';
         }
+        // 回転演出
+        frame.style.transform = `rotate(${count * 15}deg) scale(${1 + Math.sin(count * 0.3) * 0.05})`;
         count++;
         // だんだん遅くなる
         const delay = 60 + count * 12;
