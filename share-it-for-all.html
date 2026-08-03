@@ -2953,7 +2953,7 @@
       if (saved) {
         // 設定済み → 即抽選画面
         const settings = JSON.parse(saved);
-        rouletteState = { prizes: settings.prizes || [], winners: [], missionMode: settings.missionMode || 'off', customMissions: settings.missions || [], currentPrizeIdx: 0 };
+        rouletteState = { prizes: (settings.prizes || []).map(p => ({...p, awarded: 0})), winners: [], missionMode: settings.missionMode || 'off', customMissions: settings.missions || [], currentPrizeIdx: 0 };
         openRouletteMain();
         return;
       }
