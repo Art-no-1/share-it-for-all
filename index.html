@@ -1185,6 +1185,14 @@
           </div>
           <div id="file-list"><div class="text-center text-light"><div class="spinner"></div></div></div>
         </div>
+        <div class="card" style="background:linear-gradient(135deg, #667eea 0%, #764ba2 100%); color:#FFF;">
+          <h3 style="font-size:16px; margin-bottom:12px;">🎉 パーティーモード</h3>
+          <div class="flex-col gap-12">
+            <button class="btn" style="background:rgba(255,255,255,0.2);color:#FFF;border:1px solid rgba(255,255,255,0.4);" onclick="openRoulette()">🎰 写真ルーレット / 抽選</button>
+            <button class="btn" style="background:rgba(255,255,255,0.2);color:#FFF;border:1px solid rgba(255,255,255,0.4);" onclick="openTeamSplit()">👥 チーム分け</button>
+            <button class="btn" style="background:rgba(255,255,255,0.2);color:#FFF;border:1px solid rgba(255,255,255,0.4);" onclick="openBestShot()">🏆 ベストショット賞</button>
+          </div>
+        </div>
         <a href="#/" class="btn btn-outline">← トップに戻る</a>
       `;
 
@@ -2889,6 +2897,253 @@
 
       // ファイル一覧を再読み込み
       await loadFiles(appState.spaceId);
+    }
+
+    // ===== パーティーモード =====
+
+    // --- ① 写真ルーレット / 抽選 + ② ミッション ---
+    const DEFAULT_MISSIONS = [
+      '🎤 一発芸をお願いします！',
+      '🍻 隣の人と乾杯！',
+      '📸 今の気持ちを一言！',
+      '💃 好きなダンスを披露！',
+      '🎵 好きな曲のサビを歌う！',
+      '🤝 知らない人に自己紹介！',
+      '🏆 おめでとう！商品ゲット！',
+      '😂 最近あった面白い話をどうぞ！',
+    ];
+
+    async function openRoulette() {
+      const imageFiles = appState.files.filter(f => f.content_type?.startsWith('image'));
+      if (imageFiles.length < 2) { alert('ルーレットには2枚以上の写真が必要です'); return; }
+
+      // ルーレットモーダル
+      const overlay = document.createElement('div');
+      overlay.id = 'roulette-overlay';
+      overlay.className = 'slideshow-overlay';
+      overlay.style.background = 'linear-gradient(135deg, #1a1a2e 0%, #16213e 100%)';
+      overlay.innerHTML = `
+        <div style="text-align:center; padding:20px; width:100%; max-width:500px;">
+          <h2 style="color:#FFF; font-size:22px; margin-bottom:8px;">🎰 フォトルーレット</h2>
+          <p style="color:rgba(255,255,255,0.7); font-size:13px; margin-bottom:20px;">タップで回す！誰が当たる？</p>
+          <div id="roulette-frame" style="width:200px; height:200px; margin:0 auto; border-radius:50%; border:4px solid #FFD700; overflow:hidden; position:relative; box-shadow:0 0 30px rgba(255,215,0,0.3);">
+            <img id="roulette-img" src="" style="width:100%; height:100%; object-fit:cover;">
+          </div>
+          <div id="roulette-name" style="color:#FFF; font-size:18px; font-weight:bold; margin-top:16px; min-height:28px;"></div>
+          <div id="roulette-mission" style="color:#FFD700; font-size:16px; margin-top:8px; min-height:24px; font-weight:600;"></div>
+          <div style="display:flex; gap:8px; margin-top:24px; justify-content:center; flex-wrap:wrap;">
+            <button onclick="spinRoulette()" id="spin-btn" style="min-height:44px; padding:12px 28px; border:none; border-radius:24px; background:#FFD700; color:#1a1a2e; font-size:16px; font-weight:bold; cursor:pointer;">🎰 回す！</button>
+            <button onclick="toggleMission()" id="mission-toggle" style="min-height:44px; padding:12px 16px; border:2px solid rgba(255,255,255,0.3); border-radius:24px; background:transparent; color:#FFF; font-size:13px; cursor:pointer;">🎯 ミッション: ON</button>
+            <button onclick="closeRoulette()" style="min-height:44px; padding:12px 16px; border:2px solid rgba(255,255,255,0.3); border-radius:24px; background:transparent; color:#FFF; font-size:13px; cursor:pointer;">✕ 閉じる</button>
+          </div>
+        </div>
+      `;
+      document.body.appendChild(overlay);
+
+      // 初期画像
+      const firstImg = imageFiles[0];
+      const imgEl = document.getElementById('roulette-img');
+      if (USE_MOCK) {
+        const dbFile = await mockGetItem('files', firstImg.file_id);
+        if (dbFile) imgEl.src = dbFile.data_url;
+      } else {
+        imgEl.src = firstImg.thumbnail_url;
+      }
+    }
+
+    let rouletteMissionEnabled = true;
+    let rouletteSpinning = false;
+
+    function toggleMission() {
+      rouletteMissionEnabled = !rouletteMissionEnabled;
+      const btn = document.getElementById('mission-toggle');
+      if (btn) btn.textContent = rouletteMissionEnabled ? '🎯 ミッション: ON' : '🎯 ミッション: OFF';
+    }
+
+    async function spinRoulette() {
+      if (rouletteSpinning) return;
+      rouletteSpinning = true;
+      const btn = document.getElementById('spin-btn');
+      if (btn) btn.textContent = '回転中...';
+
+      const imageFiles = appState.files.filter(f => f.content_type?.startsWith('image'));
+      const imgEl = document.getElementById('roulette-img');
+      const nameEl = document.getElementById('roulette-name');
+      const missionEl = document.getElementById('roulette-mission');
+      const frame = document.getElementById('roulette-frame');
+
+      nameEl.textContent = '';
+      missionEl.textContent = '';
+
+      // 高速切り替え演出（2秒間）
+      let count = 0;
+      const totalSpins = 20;
+      const spinInterval = setInterval(async () => {
+        const randIdx = Math.floor(Math.random() * imageFiles.length);
+        const file = imageFiles[randIdx];
+        if (USE_MOCK) {
+          const dbFile = await mockGetItem('files', file.file_id);
+          if (dbFile) imgEl.src = dbFile.data_url;
+        } else {
+          imgEl.src = file.thumbnail_url || '';
+        }
+        frame.style.transform = `rotate(${count * 18}deg)`;
+        count++;
+        if (count >= totalSpins) {
+          clearInterval(spinInterval);
+          // 最終結果
+          const winnerIdx = Math.floor(Math.random() * imageFiles.length);
+          const winner = imageFiles[winnerIdx];
+          if (USE_MOCK) {
+            const dbFile = await mockGetItem('files', winner.file_id);
+            if (dbFile) imgEl.src = dbFile.data_url;
+          }
+          frame.style.transform = 'rotate(0deg)';
+          frame.style.border = '4px solid #FF4500';
+          frame.style.boxShadow = '0 0 40px rgba(255,69,0,0.6)';
+          nameEl.textContent = `🎊 ${winner.file_name.replace(/\.[^.]+$/, '')}`;
+
+          if (rouletteMissionEnabled) {
+            const mission = DEFAULT_MISSIONS[Math.floor(Math.random() * DEFAULT_MISSIONS.length)];
+            missionEl.textContent = mission;
+          }
+
+          if (btn) btn.textContent = '🎰 もう一回！';
+          rouletteSpinning = false;
+          setTimeout(() => { frame.style.border = '4px solid #FFD700'; frame.style.boxShadow = '0 0 30px rgba(255,215,0,0.3)'; }, 3000);
+        }
+      }, 100);
+    }
+
+    function closeRoulette() {
+      const overlay = document.getElementById('roulette-overlay');
+      if (overlay) overlay.remove();
+    }
+
+    // --- ③ チーム分け ---
+    async function openTeamSplit() {
+      const imageFiles = appState.files.filter(f => f.content_type?.startsWith('image'));
+      if (imageFiles.length < 2) { alert('チーム分けには2枚以上の写真が必要です'); return; }
+
+      const teamCount = parseInt(prompt('チーム数を入力してください（2〜8）:', '2') || '0');
+      if (teamCount < 2 || teamCount > 8) { alert('2〜8の数字を入力してください'); return; }
+
+      // シャッフル
+      const shuffled = [...imageFiles].sort(() => Math.random() - 0.5);
+      const teams = Array.from({ length: teamCount }, () => []);
+      shuffled.forEach((file, i) => teams[i % teamCount].push(file));
+
+      // 結果表示モーダル
+      const overlay = document.createElement('div');
+      overlay.id = 'team-overlay';
+      overlay.className = 'slideshow-overlay';
+      overlay.style.background = 'linear-gradient(135deg, #0f2027 0%, #203a43 50%, #2c5364 100%)';
+      overlay.style.overflowY = 'auto';
+      overlay.style.padding = '20px';
+
+      let html = `<div style="max-width:600px; width:100%; margin:0 auto;">
+        <h2 style="color:#FFF; text-align:center; margin-bottom:20px;">👥 チーム分け結果</h2>`;
+
+      const teamColors = ['#FF6B6B', '#4ECDC4', '#FFE66D', '#95E1D3', '#F38181', '#AA96DA', '#A8D8EA', '#FCBAD3'];
+
+      for (let t = 0; t < teamCount; t++) {
+        html += `<div style="background:rgba(255,255,255,0.1); border-left:4px solid ${teamColors[t]}; border-radius:8px; padding:12px; margin-bottom:12px;">
+          <h3 style="color:${teamColors[t]}; font-size:16px; margin-bottom:8px;">チーム ${t + 1}（${teams[t].length}人）</h3>
+          <div style="display:flex; gap:6px; flex-wrap:wrap;">`;
+        for (const file of teams[t]) {
+          const src = file.thumbnail_url || '';
+          html += `<div style="width:50px; height:50px; border-radius:50%; overflow:hidden; border:2px solid ${teamColors[t]};"><img src="${src}" style="width:100%; height:100%; object-fit:cover;"></div>`;
+        }
+        html += `</div></div>`;
+      }
+
+      html += `<button onclick="document.getElementById('team-overlay').remove()" class="btn btn-outline" style="margin-top:16px; color:#FFF; border-color:rgba(255,255,255,0.4);">✕ 閉じる</button></div>`;
+      overlay.innerHTML = html;
+      document.body.appendChild(overlay);
+    }
+
+    // --- ④ ベストショット賞 ---
+    async function openBestShot() {
+      const imageFiles = appState.files.filter(f => f.content_type?.startsWith('image'));
+      if (imageFiles.length < 1) { alert('写真が1枚以上必要です'); return; }
+
+      // 設定モーダル
+      const overlay = document.createElement('div');
+      overlay.id = 'bestshot-overlay';
+      overlay.className = 'slideshow-overlay';
+      overlay.style.background = 'linear-gradient(135deg, #f093fb 0%, #f5576c 100%)';
+      overlay.style.overflowY = 'auto';
+      overlay.style.padding = '20px';
+      overlay.innerHTML = `
+        <div style="max-width:500px; width:100%; margin:0 auto;">
+          <h2 style="color:#FFF; text-align:center; margin-bottom:8px;">🏆 ベストショット賞</h2>
+          <p style="color:rgba(255,255,255,0.8); text-align:center; font-size:13px; margin-bottom:20px;">写真をタップして投票！一番人気を決めよう</p>
+          <div style="margin-bottom:16px;">
+            <label style="color:#FFF; font-size:13px;">🎁 商品名（任意）:</label>
+            <input type="text" id="bestshot-prize" placeholder="例: Amazonギフト券 1000円" style="width:100%; margin-top:4px; padding:10px; border-radius:8px; border:none; font-size:14px;">
+          </div>
+          <div id="bestshot-grid" style="display:grid; grid-template-columns:repeat(auto-fill, minmax(100px, 1fr)); gap:8px; margin-bottom:16px;"></div>
+          <div id="bestshot-result" style="text-align:center; margin-bottom:16px;"></div>
+          <div style="display:flex; gap:8px;">
+            <button onclick="revealBestShot()" class="btn" style="flex:1; background:rgba(255,255,255,0.25); color:#FFF; border:1px solid rgba(255,255,255,0.5);">🏆 結果発表！</button>
+            <button onclick="document.getElementById('bestshot-overlay').remove()" class="btn" style="flex:1; background:transparent; color:#FFF; border:1px solid rgba(255,255,255,0.4);">✕ 閉じる</button>
+          </div>
+        </div>
+      `;
+      document.body.appendChild(overlay);
+
+      // 写真グリッド描画
+      const grid = document.getElementById('bestshot-grid');
+      for (const file of imageFiles) {
+        const src = file.thumbnail_url || '';
+        const votes = getBestShotVotes(file.file_id);
+        grid.innerHTML += `
+          <div onclick="voteBestShot('${file.file_id}')" style="position:relative; aspect-ratio:1; border-radius:8px; overflow:hidden; border:2px solid rgba(255,255,255,0.3); cursor:pointer;">
+            <img src="${src}" style="width:100%; height:100%; object-fit:cover;">
+            <span id="vote-${file.file_id}" style="position:absolute; bottom:2px; right:2px; background:rgba(0,0,0,0.7); color:#FFD700; padding:2px 6px; border-radius:8px; font-size:11px; font-weight:bold;">♥ ${votes}</span>
+          </div>`;
+      }
+    }
+
+    function getBestShotVotes(fileId) {
+      const data = JSON.parse(localStorage.getItem('bestshot_votes') || '{}');
+      return data[fileId] || 0;
+    }
+
+    function voteBestShot(fileId) {
+      const data = JSON.parse(localStorage.getItem('bestshot_votes') || '{}');
+      data[fileId] = (data[fileId] || 0) + 1;
+      localStorage.setItem('bestshot_votes', JSON.stringify(data));
+      const el = document.getElementById(`vote-${fileId}`);
+      if (el) el.textContent = `♥ ${data[fileId]}`;
+    }
+
+    function revealBestShot() {
+      const data = JSON.parse(localStorage.getItem('bestshot_votes') || '{}');
+      const entries = Object.entries(data).sort((a, b) => b[1] - a[1]);
+      const prize = document.getElementById('bestshot-prize')?.value || '';
+      const resultEl = document.getElementById('bestshot-result');
+
+      if (entries.length === 0) {
+        resultEl.innerHTML = '<p style="color:#FFF;">まだ投票がありません</p>';
+        return;
+      }
+
+      const winnerId = entries[0][0];
+      const winnerVotes = entries[0][1];
+      const winnerFile = appState.files.find(f => f.file_id === winnerId);
+      const winnerSrc = winnerFile?.thumbnail_url || '';
+
+      resultEl.innerHTML = `
+        <div style="animation: bubblePop 0.6s ease-out;">
+          <div style="width:120px; height:120px; margin:0 auto; border-radius:50%; border:4px solid #FFD700; overflow:hidden; box-shadow:0 0 30px rgba(255,215,0,0.5);">
+            <img src="${winnerSrc}" style="width:100%;height:100%;object-fit:cover;">
+          </div>
+          <p style="color:#FFD700; font-size:20px; font-weight:bold; margin-top:12px;">🏆 優勝！ (♥${winnerVotes}票)</p>
+          <p style="color:#FFF; font-size:14px;">${winnerFile?.file_name || ''}</p>
+          ${prize ? `<p style="color:#FFF; font-size:16px; margin-top:8px;">🎁 商品: <strong>${prize}</strong></p>` : ''}
+        </div>
+      `;
     }
 
     function showFieldError(id, msg) {
