@@ -3255,7 +3255,7 @@
 
       // 高速切り替え演出（だんだん遅くなる）
       let count = 0;
-      const totalSpins = 25;
+      const totalSpins = 15;
 
       const doSpin = async () => {
         if (count >= totalSpins) {
@@ -3325,7 +3325,7 @@
         frame.style.transform = `rotate(${count * 15}deg) scale(${1 + Math.sin(count * 0.3) * 0.05})`;
         count++;
         // だんだん遅くなる
-        const delay = 60 + count * 12;
+        const delay = 50 + count * 15;
         setTimeout(doSpin, delay);
       };
       doSpin();
@@ -3351,8 +3351,37 @@
       const imageFiles = appState.files.filter(f => f.content_type?.startsWith('image'));
       if (imageFiles.length < 2) { alert('チーム分けには2枚以上の写真が必要です'); return; }
 
-      const teamCount = parseInt(prompt('チーム数を入力してください（2〜8）:', '2') || '0');
-      if (teamCount < 2 || teamCount > 8) { alert('2〜8の数字を入力してください'); return; }
+      // チーム数選択ダイアログ
+      const maxTeams = Math.min(8, imageFiles.length);
+      const selectOverlay = document.createElement('div');
+      selectOverlay.id = 'team-select-overlay';
+      selectOverlay.className = 'slideshow-overlay';
+      selectOverlay.style.background = 'rgba(0,0,0,0.8)';
+      selectOverlay.style.alignItems = 'center';
+      selectOverlay.style.justifyContent = 'center';
+
+      let btnsHtml = '';
+      for (let i = 2; i <= maxTeams; i++) {
+        btnsHtml += `<button onclick="executeTeamSplit(${i})" style="width:60px; height:60px; border-radius:50%; border:3px solid #4ECDC4; background:rgba(78,205,196,0.15); color:#FFF; font-size:22px; font-weight:bold; cursor:pointer;">${i}</button>`;
+      }
+
+      selectOverlay.innerHTML = `
+        <div style="text-align:center; padding:24px;">
+          <h2 style="color:#FFF; margin-bottom:8px;">👥 チーム分け</h2>
+          <p style="color:rgba(255,255,255,0.7); font-size:14px; margin-bottom:20px;">チーム数を選んでください</p>
+          <div style="display:flex; gap:12px; flex-wrap:wrap; justify-content:center; margin-bottom:20px;">${btnsHtml}</div>
+          <button onclick="document.getElementById('team-select-overlay').remove()" style="padding:10px 24px; border:1px solid rgba(255,255,255,0.4); background:transparent; color:#FFF; border-radius:20px; cursor:pointer;">✕ キャンセル</button>
+        </div>
+      `;
+      document.body.appendChild(selectOverlay);
+    }
+
+    async function executeTeamSplit(teamCount) {
+      // 選択ダイアログを閉じる
+      const selectOverlay = document.getElementById('team-select-overlay');
+      if (selectOverlay) selectOverlay.remove();
+
+      const imageFiles = appState.files.filter(f => f.content_type?.startsWith('image'));
 
       // シャッフル
       const shuffled = [...imageFiles].sort(() => Math.random() - 0.5);
@@ -3453,6 +3482,9 @@
         alert('投票は一人一回です。既に投票済みです！');
         return;
       }
+
+      // 投票確認
+      if (!confirm('この写真に投票しますか？（投票は一回のみ）')) return;
 
       const data = JSON.parse(localStorage.getItem('bestshot_votes') || '{}');
       data[fileId] = (data[fileId] || 0) + 1;
