@@ -3375,10 +3375,14 @@
       for (let t = 0; t < teamCount; t++) {
         html += `<div style="background:rgba(255,255,255,0.1); border-left:4px solid ${teamColors[t]}; border-radius:8px; padding:12px; margin-bottom:12px;">
           <h3 style="color:${teamColors[t]}; font-size:16px; margin-bottom:8px;">チーム ${t + 1}（${teams[t].length}人）</h3>
-          <div style="display:flex; gap:6px; flex-wrap:wrap;">`;
+          <div style="display:flex; gap:8px; flex-wrap:wrap;">`;
         for (const file of teams[t]) {
           const src = file.thumbnail_url || '';
-          html += `<div style="width:50px; height:50px; border-radius:50%; overflow:hidden; border:2px solid ${teamColors[t]};"><img src="${src}" style="width:100%; height:100%; object-fit:cover;"></div>`;
+          const name = file.file_name.replace(/\.[^.]+$/, '');
+          html += `<div onclick="this.querySelector('.team-name-tip').style.display=this.querySelector('.team-name-tip').style.display==='block'?'none':'block'" style="position:relative; width:70px; height:70px; border-radius:50%; overflow:visible; cursor:pointer;" title="${name}">
+            <img src="${src}" style="width:70px; height:70px; border-radius:50%; object-fit:cover; border:3px solid ${teamColors[t]};">
+            <span class="team-name-tip" style="display:none; position:absolute; bottom:-22px; left:50%; transform:translateX(-50%); background:rgba(0,0,0,0.85); color:#FFF; font-size:10px; padding:2px 6px; border-radius:4px; white-space:nowrap; z-index:5;">${name}</span>
+          </div>`;
         }
         html += `</div></div>`;
       }
