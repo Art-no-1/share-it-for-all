@@ -2902,117 +2902,284 @@
     // ===== パーティーモード =====
 
     // --- ① 写真ルーレット / 抽選 + ② ミッション ---
-    const DEFAULT_MISSIONS = [
+    let rouletteState = {
+      prizes: [],         // [{name:'特賞', count:1}, {name:'A賞', count:2}...]
+      winners: [],        // [{fileId, prizeName}]
+      missionMode: 'off', // 'off' | 'auto' | 'custom'
+      customMissions: [],
+      currentPrizeIdx: 0,
+    };
+
+    const AUTO_MISSIONS = [
       '🎤 一発芸をお願いします！',
       '🍻 隣の人と乾杯！',
       '📸 今の気持ちを一言！',
       '💃 好きなダンスを披露！',
       '🎵 好きな曲のサビを歌う！',
       '🤝 知らない人に自己紹介！',
-      '🏆 おめでとう！商品ゲット！',
       '😂 最近あった面白い話をどうぞ！',
+      '🙌 全力で万歳してください！',
     ];
 
     async function openRoulette() {
       const imageFiles = appState.files.filter(f => f.content_type?.startsWith('image'));
       if (imageFiles.length < 2) { alert('ルーレットには2枚以上の写真が必要です'); return; }
 
-      // ルーレットモーダル
+      // 設定画面を表示
+      rouletteState = { prizes: [], winners: [], missionMode: 'off', customMissions: [], currentPrizeIdx: 0 };
+
       const overlay = document.createElement('div');
       overlay.id = 'roulette-overlay';
       overlay.className = 'slideshow-overlay';
       overlay.style.background = 'linear-gradient(135deg, #1a1a2e 0%, #16213e 100%)';
+      overlay.style.overflowY = 'auto';
       overlay.innerHTML = `
-        <div style="text-align:center; padding:20px; width:100%; max-width:500px;">
-          <h2 style="color:#FFF; font-size:22px; margin-bottom:8px;">🎰 フォトルーレット</h2>
-          <p style="color:rgba(255,255,255,0.7); font-size:13px; margin-bottom:20px;">タップで回す！誰が当たる？</p>
-          <div id="roulette-frame" style="width:200px; height:200px; margin:0 auto; border-radius:50%; border:4px solid #FFD700; overflow:hidden; position:relative; box-shadow:0 0 30px rgba(255,215,0,0.3);">
+        <div style="max-width:500px; width:100%; margin:0 auto; padding:20px;" id="roulette-setup">
+          <h2 style="color:#FFF; text-align:center; margin-bottom:16px;">🎰 フォトルーレット 設定</h2>
+
+          <div style="background:rgba(255,255,255,0.08); border-radius:12px; padding:16px; margin-bottom:16px;">
+            <h3 style="color:#FFD700; font-size:14px; margin-bottom:8px;">🎁 商品・賞の設定</h3>
+            <p style="color:rgba(255,255,255,0.6); font-size:12px; margin-bottom:12px;">抽選で当たった人に渡す商品や賞を設定します。無しでもOK。</p>
+            <div id="prize-list"></div>
+            <div style="display:flex; gap:6px; margin-top:8px;">
+              <input type="text" id="new-prize-name" placeholder="賞の名前（例: 特賞）" style="flex:2; padding:8px; border-radius:6px; border:none; font-size:14px;">
+              <input type="number" id="new-prize-count" value="1" min="1" max="99" style="flex:0.5; padding:8px; border-radius:6px; border:none; font-size:14px; width:50px;" placeholder="数">
+              <button onclick="addPrize()" style="padding:8px 12px; border:none; border-radius:6px; background:#FFD700; color:#1a1a2e; font-weight:bold; cursor:pointer;">+追加</button>
+            </div>
+          </div>
+
+          <div style="background:rgba(255,255,255,0.08); border-radius:12px; padding:16px; margin-bottom:16px;">
+            <h3 style="color:#4ECDC4; font-size:14px; margin-bottom:8px;">🎯 お題（ミッション）設定</h3>
+            <p style="color:rgba(255,255,255,0.6); font-size:12px; margin-bottom:12px;">当選者に出すお題です。パーティーゲームに最適！</p>
+            <div style="display:flex; gap:6px; flex-wrap:wrap;">
+              <button onclick="setMissionMode('off')" id="mm-off" class="btn" style="flex:1; min-width:80px; padding:8px; font-size:12px; background:rgba(255,255,255,0.2); color:#FFF; border:2px solid #FFF;">なし</button>
+              <button onclick="setMissionMode('auto')" id="mm-auto" class="btn" style="flex:1; min-width:80px; padding:8px; font-size:12px; background:transparent; color:#FFF; border:2px solid rgba(255,255,255,0.3);">お任せ</button>
+              <button onclick="setMissionMode('custom')" id="mm-custom" class="btn" style="flex:1; min-width:80px; padding:8px; font-size:12px; background:transparent; color:#FFF; border:2px solid rgba(255,255,255,0.3);">自分で設定</button>
+            </div>
+            <div id="custom-mission-area" style="display:none; margin-top:12px;">
+              <textarea id="custom-missions-input" placeholder="1行に1つずつお題を入力&#10;例:&#10;一発芸をお願いします！&#10;隣の人と乾杯！" style="width:100%; min-height:80px; padding:8px; border-radius:6px; border:none; font-size:13px; resize:vertical;"></textarea>
+            </div>
+          </div>
+
+          <div style="display:flex; gap:8px;">
+            <button onclick="startRouletteMain()" class="btn" style="flex:2; background:#FFD700; color:#1a1a2e; font-weight:bold; font-size:16px;">🎰 ルーレット開始！</button>
+            <button onclick="closeRoulette()" class="btn" style="flex:1; background:transparent; color:#FFF; border:1px solid rgba(255,255,255,0.4);">✕</button>
+          </div>
+        </div>
+
+        <div id="roulette-main" style="display:none; text-align:center; padding:20px; width:100%;">
+          <div id="roulette-prize-label" style="color:#FFD700; font-size:18px; font-weight:bold; margin-bottom:12px;"></div>
+          <div id="roulette-frame" style="width:min(70vw, 350px); height:min(70vw, 350px); margin:0 auto; border-radius:50%; border:6px solid #FFD700; overflow:hidden; position:relative; box-shadow:0 0 50px rgba(255,215,0,0.4); transition: border-color 0.3s, box-shadow 0.3s;">
             <img id="roulette-img" src="" style="width:100%; height:100%; object-fit:cover;">
           </div>
-          <div id="roulette-name" style="color:#FFF; font-size:18px; font-weight:bold; margin-top:16px; min-height:28px;"></div>
-          <div id="roulette-mission" style="color:#FFD700; font-size:16px; margin-top:8px; min-height:24px; font-weight:600;"></div>
-          <div style="display:flex; gap:8px; margin-top:24px; justify-content:center; flex-wrap:wrap;">
-            <button onclick="spinRoulette()" id="spin-btn" style="min-height:44px; padding:12px 28px; border:none; border-radius:24px; background:#FFD700; color:#1a1a2e; font-size:16px; font-weight:bold; cursor:pointer;">🎰 回す！</button>
-            <button onclick="toggleMission()" id="mission-toggle" style="min-height:44px; padding:12px 16px; border:2px solid rgba(255,255,255,0.3); border-radius:24px; background:transparent; color:#FFF; font-size:13px; cursor:pointer;">🎯 ミッション: ON</button>
-            <button onclick="closeRoulette()" style="min-height:44px; padding:12px 16px; border:2px solid rgba(255,255,255,0.3); border-radius:24px; background:transparent; color:#FFF; font-size:13px; cursor:pointer;">✕ 閉じる</button>
+          <div id="roulette-result-name" style="color:#FFF; font-size:22px; font-weight:bold; margin-top:20px; min-height:32px;"></div>
+          <div id="roulette-result-mission" style="color:#4ECDC4; font-size:18px; margin-top:8px; min-height:24px;"></div>
+          <div id="roulette-history" style="color:rgba(255,255,255,0.6); font-size:12px; margin-top:16px; max-height:80px; overflow-y:auto;"></div>
+          <div style="display:flex; gap:8px; margin-top:20px; justify-content:center; flex-wrap:wrap;">
+            <button onclick="spinRoulette()" id="spin-btn" style="min-height:50px; padding:14px 32px; border:none; border-radius:28px; background:#FFD700; color:#1a1a2e; font-size:18px; font-weight:bold; cursor:pointer; box-shadow:0 4px 15px rgba(255,215,0,0.4);">🎰 回す！</button>
+            <button onclick="resetWinners()" style="min-height:44px; padding:10px 16px; border:2px solid rgba(255,255,255,0.3); border-radius:24px; background:transparent; color:#FFF; font-size:13px; cursor:pointer;">🔄 全員参加に戻す</button>
+            <button onclick="closeRoulette()" style="min-height:44px; padding:10px 16px; border:2px solid rgba(255,255,255,0.3); border-radius:24px; background:transparent; color:#FFF; font-size:13px; cursor:pointer;">✕ 終了</button>
           </div>
+          <div style="color:rgba(255,255,255,0.5); font-size:11px; margin-top:12px;" id="roulette-remaining"></div>
         </div>
       `;
       document.body.appendChild(overlay);
+    }
 
-      // 初期画像
-      const firstImg = imageFiles[0];
-      const imgEl = document.getElementById('roulette-img');
-      if (USE_MOCK) {
-        const dbFile = await mockGetItem('files', firstImg.file_id);
-        if (dbFile) imgEl.src = dbFile.data_url;
-      } else {
-        imgEl.src = firstImg.thumbnail_url;
+    function addPrize() {
+      const name = document.getElementById('new-prize-name').value.trim();
+      const count = parseInt(document.getElementById('new-prize-count').value) || 1;
+      if (!name) return;
+      rouletteState.prizes.push({ name, count, awarded: 0 });
+      document.getElementById('new-prize-name').value = '';
+      document.getElementById('new-prize-count').value = '1';
+      renderPrizeList();
+    }
+
+    function removePrize(idx) {
+      rouletteState.prizes.splice(idx, 1);
+      renderPrizeList();
+    }
+
+    function renderPrizeList() {
+      const el = document.getElementById('prize-list');
+      if (!el) return;
+      if (rouletteState.prizes.length === 0) {
+        el.innerHTML = '<p style="color:rgba(255,255,255,0.4); font-size:12px;">商品未設定（純粋なルーレットとして使用）</p>';
+        return;
+      }
+      el.innerHTML = rouletteState.prizes.map((p, i) => `
+        <div style="display:flex; justify-content:space-between; align-items:center; padding:6px 0; border-bottom:1px solid rgba(255,255,255,0.1);">
+          <span style="color:#FFF; font-size:13px;">🎁 ${p.name} × ${p.count}</span>
+          <button onclick="removePrize(${i})" style="background:none; border:none; color:#F38181; cursor:pointer; font-size:16px;">✕</button>
+        </div>
+      `).join('');
+    }
+
+    function setMissionMode(mode) {
+      rouletteState.missionMode = mode;
+      ['off', 'auto', 'custom'].forEach(m => {
+        const btn = document.getElementById(`mm-${m}`);
+        if (btn) {
+          btn.style.background = m === mode ? 'rgba(255,255,255,0.2)' : 'transparent';
+          btn.style.borderColor = m === mode ? '#FFF' : 'rgba(255,255,255,0.3)';
+        }
+      });
+      const customArea = document.getElementById('custom-mission-area');
+      if (customArea) customArea.style.display = mode === 'custom' ? 'block' : 'none';
+    }
+
+    function startRouletteMain() {
+      // カスタムミッション取得
+      if (rouletteState.missionMode === 'custom') {
+        const text = document.getElementById('custom-missions-input')?.value || '';
+        rouletteState.customMissions = text.split('\n').map(l => l.trim()).filter(l => l);
+      }
+
+      // 設定画面を隠してメイン画面を表示
+      document.getElementById('roulette-setup').style.display = 'none';
+      document.getElementById('roulette-main').style.display = 'block';
+
+      updateRouletteStatus();
+    }
+
+    function updateRouletteStatus() {
+      const imageFiles = appState.files.filter(f => f.content_type?.startsWith('image'));
+      const remaining = imageFiles.filter(f => !rouletteState.winners.find(w => w.fileId === f.file_id));
+
+      // 現在の賞を表示
+      const prizeLabel = document.getElementById('roulette-prize-label');
+      if (prizeLabel) {
+        const currentPrize = getCurrentPrize();
+        prizeLabel.textContent = currentPrize ? `🎁 次の賞: ${currentPrize.name}` : '';
+      }
+
+      // 残り人数
+      const remainEl = document.getElementById('roulette-remaining');
+      if (remainEl) remainEl.textContent = `残り参加者: ${remaining.length}人 / 全体: ${imageFiles.length}人`;
+
+      // 当選履歴
+      const histEl = document.getElementById('roulette-history');
+      if (histEl && rouletteState.winners.length > 0) {
+        histEl.innerHTML = '<strong>当選履歴:</strong> ' + rouletteState.winners.map(w => `${w.prizeName || '🎊'} → ${w.fileName}`).join(' | ');
       }
     }
 
-    let rouletteMissionEnabled = true;
-    let rouletteSpinning = false;
-
-    function toggleMission() {
-      rouletteMissionEnabled = !rouletteMissionEnabled;
-      const btn = document.getElementById('mission-toggle');
-      if (btn) btn.textContent = rouletteMissionEnabled ? '🎯 ミッション: ON' : '🎯 ミッション: OFF';
+    function getCurrentPrize() {
+      for (const prize of rouletteState.prizes) {
+        if (prize.awarded < prize.count) return prize;
+      }
+      return null;
     }
+
+    let rouletteSpinning = false;
 
     async function spinRoulette() {
       if (rouletteSpinning) return;
-      rouletteSpinning = true;
-      const btn = document.getElementById('spin-btn');
-      if (btn) btn.textContent = '回転中...';
 
       const imageFiles = appState.files.filter(f => f.content_type?.startsWith('image'));
+      const remaining = imageFiles.filter(f => !rouletteState.winners.find(w => w.fileId === f.file_id));
+
+      if (remaining.length === 0) {
+        alert('全員が当選済みです！「全員参加に戻す」でリセットできます。');
+        return;
+      }
+
+      rouletteSpinning = true;
+      const btn = document.getElementById('spin-btn');
+      if (btn) btn.textContent = '🎰 回転中...';
+
       const imgEl = document.getElementById('roulette-img');
-      const nameEl = document.getElementById('roulette-name');
-      const missionEl = document.getElementById('roulette-mission');
+      const nameEl = document.getElementById('roulette-result-name');
+      const missionEl = document.getElementById('roulette-result-mission');
       const frame = document.getElementById('roulette-frame');
 
       nameEl.textContent = '';
       missionEl.textContent = '';
+      frame.style.borderColor = '#FFD700';
+      frame.style.boxShadow = '0 0 50px rgba(255,215,0,0.4)';
 
-      // 高速切り替え演出（2秒間）
+      // 高速切り替え演出（だんだん遅くなる）
       let count = 0;
-      const totalSpins = 20;
-      const spinInterval = setInterval(async () => {
-        const randIdx = Math.floor(Math.random() * imageFiles.length);
-        const file = imageFiles[randIdx];
+      const totalSpins = 25;
+
+      const doSpin = async () => {
+        if (count >= totalSpins) {
+          // 最終結果
+          const winnerIdx = Math.floor(Math.random() * remaining.length);
+          const winner = remaining[winnerIdx];
+          if (USE_MOCK) {
+            const dbFile = await mockGetItem('files', winner.file_id);
+            if (dbFile) imgEl.src = dbFile.data_url;
+          } else {
+            imgEl.src = winner.thumbnail_url || '';
+          }
+
+          // 演出
+          frame.style.borderColor = '#FF4500';
+          frame.style.boxShadow = '0 0 60px rgba(255,69,0,0.7)';
+
+          // 賞の処理
+          const currentPrize = getCurrentPrize();
+          let prizeName = '';
+          if (currentPrize) {
+            currentPrize.awarded++;
+            prizeName = `🎁 ${currentPrize.name}`;
+          }
+
+          const fileName = winner.file_name.replace(/\.[^.]+$/, '');
+          nameEl.textContent = `🎊 当選: ${fileName}`;
+
+          // ミッション
+          if (rouletteState.missionMode === 'auto') {
+            const mission = AUTO_MISSIONS[Math.floor(Math.random() * AUTO_MISSIONS.length)];
+            missionEl.textContent = `${prizeName ? prizeName + ' ✦ ' : ''}${mission}`;
+          } else if (rouletteState.missionMode === 'custom' && rouletteState.customMissions.length > 0) {
+            const mission = rouletteState.customMissions[Math.floor(Math.random() * rouletteState.customMissions.length)];
+            missionEl.textContent = `${prizeName ? prizeName + ' ✦ ' : ''}${mission}`;
+          } else if (prizeName) {
+            missionEl.textContent = prizeName;
+          }
+
+          // 当選リストに追加
+          rouletteState.winners.push({ fileId: winner.file_id, fileName, prizeName: currentPrize?.name || '' });
+
+          if (btn) btn.textContent = '🎰 次を回す！';
+          rouletteSpinning = false;
+          updateRouletteStatus();
+
+          setTimeout(() => {
+            frame.style.borderColor = '#FFD700';
+            frame.style.boxShadow = '0 0 50px rgba(255,215,0,0.4)';
+          }, 4000);
+          return;
+        }
+
+        // ランダム写真表示
+        const randIdx = Math.floor(Math.random() * remaining.length);
+        const file = remaining[randIdx];
         if (USE_MOCK) {
           const dbFile = await mockGetItem('files', file.file_id);
           if (dbFile) imgEl.src = dbFile.data_url;
         } else {
           imgEl.src = file.thumbnail_url || '';
         }
-        frame.style.transform = `rotate(${count * 18}deg)`;
         count++;
-        if (count >= totalSpins) {
-          clearInterval(spinInterval);
-          // 最終結果
-          const winnerIdx = Math.floor(Math.random() * imageFiles.length);
-          const winner = imageFiles[winnerIdx];
-          if (USE_MOCK) {
-            const dbFile = await mockGetItem('files', winner.file_id);
-            if (dbFile) imgEl.src = dbFile.data_url;
-          }
-          frame.style.transform = 'rotate(0deg)';
-          frame.style.border = '4px solid #FF4500';
-          frame.style.boxShadow = '0 0 40px rgba(255,69,0,0.6)';
-          nameEl.textContent = `🎊 ${winner.file_name.replace(/\.[^.]+$/, '')}`;
+        // だんだん遅くなる
+        const delay = 60 + count * 12;
+        setTimeout(doSpin, delay);
+      };
+      doSpin();
+    }
 
-          if (rouletteMissionEnabled) {
-            const mission = DEFAULT_MISSIONS[Math.floor(Math.random() * DEFAULT_MISSIONS.length)];
-            missionEl.textContent = mission;
-          }
-
-          if (btn) btn.textContent = '🎰 もう一回！';
-          rouletteSpinning = false;
-          setTimeout(() => { frame.style.border = '4px solid #FFD700'; frame.style.boxShadow = '0 0 30px rgba(255,215,0,0.3)'; }, 3000);
-        }
-      }, 100);
+    function resetWinners() {
+      if (!confirm('当選者リストをリセットして全員参加に戻しますか？')) return;
+      rouletteState.winners = [];
+      rouletteState.prizes.forEach(p => p.awarded = 0);
+      document.getElementById('roulette-result-name').textContent = '';
+      document.getElementById('roulette-result-mission').textContent = '';
+      document.getElementById('roulette-history').innerHTML = '';
+      updateRouletteStatus();
     }
 
     function closeRoulette() {
