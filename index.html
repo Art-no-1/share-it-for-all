@@ -2948,8 +2948,31 @@
       const imageFiles = appState.files.filter(f => f.content_type?.startsWith('image'));
       if (imageFiles.length < 2) { alert('ルーレットには2枚以上の写真が必要です'); return; }
 
-      // 設定画面を表示
+      // 設定済みか確認
+      const saved = localStorage.getItem('share_it_roulette_settings');
+      if (saved) {
+        // 設定済み → 即抽選画面
+        const settings = JSON.parse(saved);
+        rouletteState = { prizes: settings.prizes || [], winners: [], missionMode: settings.missionMode || 'off', customMissions: settings.missions || [], currentPrizeIdx: 0 };
+        openRouletteMain();
+        return;
+      }
+
+      // 未設定 → 設定画面
+      openRouletteSetup();
+    }
+
+    function openRouletteSetup() {
+      closeRoulette(); // 既存のオーバーレイがあれば閉じる
       rouletteState = { prizes: [], winners: [], missionMode: 'off', customMissions: [], currentPrizeIdx: 0 };
+
+      // 保存済み設定があれば復元
+      const saved = localStorage.getItem('share_it_roulette_settings');
+      if (saved) {
+        const settings = JSON.parse(saved);
+        rouletteState.prizes = settings.prizes || [];
+        rouletteState.missionMode = settings.missionMode || 'off';
+      }
 
       const overlay = document.createElement('div');
       overlay.id = 'roulette-overlay';
@@ -2985,8 +3008,7 @@
           </div>
 
           <div style="display:flex; gap:8px;">
-            <button onclick="startRouletteMain()" class="btn" style="flex:2; background:#FFD700; color:#1a1a2e; font-weight:bold; font-size:16px;">🎰 ルーレット開始！</button>
-            <button onclick="closeRoulette()" class="btn" style="flex:1; background:transparent; color:#FFF; border:1px solid rgba(255,255,255,0.4);">✕</button>
+            <button onclick="saveRouletteSettings()" class="btn" style="flex:1; background:#4ECDC4; color:#1a1a2e; font-weight:bold; font-size:16px;">✅ 設定を保存</button>
           </div>
         </div>
 
@@ -3088,6 +3110,51 @@
       autoMissionEnabled.push(true);
       input.value = '';
       renderAutoMissionList();
+    }
+
+    function saveRouletteSettings() {
+      // ミッションリスト構築
+      let missions = [];
+      if (rouletteState.missionMode === 'on') {
+        missions = AUTO_MISSIONS.filter((_, i) => autoMissionEnabled[i]);
+      }
+
+      const settings = {
+        prizes: rouletteState.prizes,
+        missionMode: rouletteState.missionMode,
+        missions: missions,
+      };
+      localStorage.setItem('share_it_roulette_settings', JSON.stringify(settings));
+      closeRoulette();
+      alert('✅ ルーレット設定を保存しました。\n次回「写真ルーレット / 抽選」を開くと抽選画面が表示されます。');
+    }
+
+    function openRouletteMain() {
+      const overlay = document.createElement('div');
+      overlay.id = 'roulette-overlay';
+      overlay.className = 'slideshow-overlay';
+      overlay.style.background = 'linear-gradient(135deg, #1a1a2e 0%, #16213e 100%)';
+      overlay.style.overflowY = 'auto';
+      overlay.innerHTML = `
+        <div id="roulette-main" style="text-align:center; padding:20px; width:100%;">
+          <div id="roulette-prize-label" style="color:#FFD700; font-size:18px; font-weight:bold; margin-bottom:12px;"></div>
+          <div id="roulette-frame" style="width:min(70vw, 350px); height:min(70vw, 350px); margin:0 auto; border-radius:50%; border:6px solid #FFD700; overflow:hidden; position:relative; box-shadow:0 0 50px rgba(255,215,0,0.4); transition: border-color 0.3s, box-shadow 0.3s, transform 0.15s;">
+            <img id="roulette-img" src="" style="width:100%; height:100%; object-fit:cover;">
+          </div>
+          <div id="roulette-result-name" style="color:#FFF; font-size:22px; font-weight:bold; margin-top:20px; min-height:32px;"></div>
+          <div id="roulette-result-mission" style="color:#4ECDC4; font-size:18px; margin-top:8px; min-height:24px;"></div>
+          <div id="roulette-history" style="color:rgba(255,255,255,0.6); font-size:12px; margin-top:16px; max-height:80px; overflow-y:auto;"></div>
+          <div style="display:flex; gap:8px; margin-top:20px; justify-content:center; flex-wrap:wrap;">
+            <button onclick="spinRoulette()" id="spin-btn" style="min-height:50px; padding:14px 32px; border:none; border-radius:28px; background:#FFD700; color:#1a1a2e; font-size:18px; font-weight:bold; cursor:pointer; box-shadow:0 4px 15px rgba(255,215,0,0.4);">🎰 回す！</button>
+            <button onclick="resetWinners()" style="min-height:44px; padding:10px 16px; border:2px solid rgba(255,255,255,0.3); border-radius:24px; background:transparent; color:#FFF; font-size:13px; cursor:pointer;">🔄 全員参加に戻す</button>
+            <button onclick="openRouletteSetup(); " style="min-height:44px; padding:10px 16px; border:2px solid rgba(255,255,255,0.3); border-radius:24px; background:transparent; color:#FFF; font-size:13px; cursor:pointer;">⚙ 設定変更</button>
+            <button onclick="closeRoulette()" style="min-height:44px; padding:10px 16px; border:2px solid rgba(255,255,255,0.3); border-radius:24px; background:transparent; color:#FFF; font-size:13px; cursor:pointer;">✕ 終了</button>
+          </div>
+          <div style="color:rgba(255,255,255,0.5); font-size:11px; margin-top:12px;" id="roulette-remaining"></div>
+        </div>
+      `;
+      document.body.appendChild(overlay);
+      updateRouletteStatus();
     }
 
     function startRouletteMain() {
