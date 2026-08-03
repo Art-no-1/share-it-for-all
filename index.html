@@ -2973,19 +2973,14 @@
 
           <div style="background:rgba(255,255,255,0.08); border-radius:12px; padding:16px; margin-bottom:16px;">
             <h3 style="color:#4ECDC4; font-size:14px; margin-bottom:8px;">🎯 お題（ミッション）設定</h3>
-            <p style="color:rgba(255,255,255,0.6); font-size:12px; margin-bottom:12px;">当選者に出すお題です。パーティーゲームに最適！</p>
-            <div style="display:flex; gap:6px; flex-wrap:wrap;">
-              <button onclick="setMissionMode('off')" id="mm-off" class="btn" style="flex:1; min-width:80px; padding:8px; font-size:12px; background:rgba(255,255,255,0.2); color:#FFF; border:2px solid #FFF;">なし</button>
-              <button onclick="setMissionMode('auto')" id="mm-auto" class="btn" style="flex:1; min-width:80px; padding:8px; font-size:12px; background:transparent; color:#FFF; border:2px solid rgba(255,255,255,0.3);">お任せ</button>
-              <button onclick="setMissionMode('custom')" id="mm-custom" class="btn" style="flex:1; min-width:80px; padding:8px; font-size:12px; background:transparent; color:#FFF; border:2px solid rgba(255,255,255,0.3);">自分で設定</button>
-              <button onclick="setMissionMode('mix')" id="mm-mix" class="btn" style="flex:1; min-width:80px; padding:8px; font-size:12px; background:transparent; color:#FFF; border:2px solid rgba(255,255,255,0.3);">お任せ＋追加</button>
+            <p style="color:rgba(255,255,255,0.6); font-size:12px; margin-bottom:12px;">当選者にランダムでお題を出します。不要ならOFFに。</p>
+            <div style="display:flex; gap:8px; margin-bottom:12px;">
+              <button onclick="setMissionMode('off')" id="mm-off" class="btn" style="flex:1; padding:10px; font-size:14px; background:rgba(255,255,255,0.2); color:#FFF; border:2px solid #FFF;">なし</button>
+              <button onclick="setMissionMode('on')" id="mm-on" class="btn" style="flex:1; padding:10px; font-size:14px; background:transparent; color:#FFF; border:2px solid rgba(255,255,255,0.3);">あり</button>
             </div>
-            <div id="auto-mission-area" style="display:none; margin-top:12px;">
-              <p style="color:rgba(255,255,255,0.5); font-size:11px; margin-bottom:6px;">✅ ON / ☐ OFF で使うお題を選択（${AUTO_MISSIONS.length}件）</p>
-              <div id="auto-mission-list" style="max-height:150px; overflow-y:auto;"></div>
-            </div>
-            <div id="custom-mission-area" style="display:none; margin-top:12px;">
-              <textarea id="custom-missions-input" placeholder="1行に1つずつお題を入力&#10;例:&#10;一発芸をお願いします！&#10;隣の人と乾杯！" style="width:100%; min-height:80px; padding:8px; border-radius:6px; border:none; font-size:13px; resize:vertical;"></textarea>
+            <div id="mission-edit-area" style="display:none;">
+              <p style="color:rgba(255,255,255,0.5); font-size:11px; margin-bottom:6px;">✅ = 使用 / チェック外す = 不使用 / ✕ = 削除</p>
+              <div id="auto-mission-list" style="max-height:200px; overflow-y:auto;"></div>
             </div>
           </div>
 
@@ -3046,20 +3041,20 @@
 
     function setMissionMode(mode) {
       rouletteState.missionMode = mode;
-      ['off', 'auto', 'custom', 'mix'].forEach(m => {
-        const btn = document.getElementById(`mm-${m}`);
-        if (btn) {
-          btn.style.background = m === mode ? 'rgba(255,255,255,0.2)' : 'transparent';
-          btn.style.borderColor = m === mode ? '#FFF' : 'rgba(255,255,255,0.3)';
-        }
-      });
-      const autoArea = document.getElementById('auto-mission-area');
-      const customArea = document.getElementById('custom-mission-area');
-      if (autoArea) autoArea.style.display = (mode === 'auto' || mode === 'mix') ? 'block' : 'none';
-      if (customArea) customArea.style.display = (mode === 'custom' || mode === 'mix') ? 'block' : 'none';
+      const offBtn = document.getElementById('mm-off');
+      const onBtn = document.getElementById('mm-on');
+      const editArea = document.getElementById('mission-edit-area');
 
-      // お任せ一覧を描画
-      if (mode === 'auto' || mode === 'mix') renderAutoMissionList();
+      if (mode === 'off') {
+        if (offBtn) { offBtn.style.background = 'rgba(255,255,255,0.2)'; offBtn.style.borderColor = '#FFF'; }
+        if (onBtn) { onBtn.style.background = 'transparent'; onBtn.style.borderColor = 'rgba(255,255,255,0.3)'; }
+        if (editArea) editArea.style.display = 'none';
+      } else {
+        if (offBtn) { offBtn.style.background = 'transparent'; offBtn.style.borderColor = 'rgba(255,255,255,0.3)'; }
+        if (onBtn) { onBtn.style.background = 'rgba(255,255,255,0.2)'; onBtn.style.borderColor = '#FFF'; }
+        if (editArea) editArea.style.display = 'block';
+        renderAutoMissionList();
+      }
     }
 
     let autoMissionEnabled = AUTO_MISSIONS.map(() => true);
@@ -3096,17 +3091,12 @@
     }
 
     function startRouletteMain() {
-      // ミッションリスト構築
-      let allMissions = [];
-      if (rouletteState.missionMode === 'auto' || rouletteState.missionMode === 'mix') {
-        allMissions = AUTO_MISSIONS.filter((_, i) => autoMissionEnabled[i]);
+      // ミッションリスト構築（「あり」の場合、有効なお題だけ使用）
+      if (rouletteState.missionMode === 'on') {
+        rouletteState.customMissions = AUTO_MISSIONS.filter((_, i) => autoMissionEnabled[i]);
+      } else {
+        rouletteState.customMissions = [];
       }
-      if (rouletteState.missionMode === 'custom' || rouletteState.missionMode === 'mix') {
-        const text = document.getElementById('custom-missions-input')?.value || '';
-        const custom = text.split('\n').map(l => l.trim()).filter(l => l);
-        allMissions = [...allMissions, ...custom];
-      }
-      rouletteState.customMissions = allMissions;
 
       // 設定画面を隠してメイン画面を表示
       document.getElementById('roulette-setup').style.display = 'none';
