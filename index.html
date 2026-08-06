@@ -1090,6 +1090,11 @@
           creatorSpaces.push(data.space_id);
           localStorage.setItem('share_it_creator_spaces', JSON.stringify(creatorSpaces));
         }
+        // 合言葉情報を保存（管理者のみ確認用）
+        const spaceCredentials = JSON.parse(localStorage.getItem('share_it_credentials') || '{}');
+        spaceCredentials[data.space_id] = { date_code: dateCode, keyword: keyword };
+        localStorage.setItem('share_it_credentials', JSON.stringify(spaceCredentials));
+
         location.hash = `#space/${data.space_id}`;
       } catch (err) {
         showAlert('create-error', err.message);
@@ -1200,6 +1205,7 @@
           </div>
           <p id="party-mode-notice" style="display:none; font-size:12px; opacity:0.7; margin-top:8px;">※ ルーレット設定はスペース作成者のみ変更できます</p>
         </div>
+        <button id="show-credentials-btn" style="display:none;" class="btn btn-outline" onclick="showSpaceCredentials()">🔑 スペース情報を確認</button>
         <a href="#/" class="btn btn-outline">← トップに戻る</a>
       `;
 
@@ -1212,7 +1218,10 @@
       if (!isCreator) {
         const notice = document.getElementById('party-mode-notice');
         if (notice) notice.style.display = 'block';
-        // 参加者はルーレットを「閲覧モード」で開く（設定変更不可）
+      } else {
+        // 作成者のみ: スペース情報確認ボタンを表示
+        const credBtn = document.getElementById('show-credentials-btn');
+        if (credBtn) credBtn.style.display = 'block';
       }
 
       // ファイル一覧読み込み
@@ -2922,6 +2931,19 @@
     function isSpaceCreator(spaceId) {
       const creatorSpaces = JSON.parse(localStorage.getItem('share_it_creator_spaces') || '[]');
       return creatorSpaces.includes(spaceId);
+    }
+
+    /**
+     * スペースの合言葉情報を表示する（作成者のみ）。
+     */
+    function showSpaceCredentials() {
+      const credentials = JSON.parse(localStorage.getItem('share_it_credentials') || '{}');
+      const cred = credentials[appState.spaceId];
+      if (cred) {
+        alert(`🔑 スペース情報\n\n📅 日付コード: ${cred.date_code}\n🗝 合言葉: ${cred.keyword}\n\n※ この情報は作成者のみ確認できます`);
+      } else {
+        alert('スペース情報が見つかりません（古いスペースの可能性があります）');
+      }
     }
 
     // --- ① 写真ルーレット / 抽選 + ② ミッション ---
