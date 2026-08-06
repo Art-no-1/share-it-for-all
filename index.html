@@ -338,6 +338,7 @@
       align-items: center;
       justify-content: center;
       overflow: hidden;
+      position: relative;
     }
     .photo-canvas-wrap canvas {
       max-width: 100%;
@@ -1812,6 +1813,7 @@
       }
 
       editorState = { fileId, fileName: file.file_name, imgSrc, currentFilter: 'none', isPremium: localStorage.getItem('share_it_premium') === 'true' };
+      placedDecos = []; // デコリセット
 
       // モーダル描画
       const modal = document.createElement('div');
@@ -1827,6 +1829,7 @@
           <canvas id="photo-canvas"></canvas>
         </div>
         <div class="filter-strip" id="filter-strip"></div>
+        <div class="filter-strip" id="deco-strip" style="border-top:1px solid rgba(255,255,255,0.1); padding-top:8px;"></div>
         <div class="photo-actions">
           <button style="background:var(--primary);color:#FFF;" onclick="downloadWithStamp()">📥 スタンプ付き保存</button>
           <button style="background:var(--success);color:#FFF;" onclick="shareToSpace()">📤 スペースにシェア</button>
@@ -1842,6 +1845,9 @@
 
       // フィルターチップ描画
       renderFilterStrip();
+
+      // デコストリップ描画
+      renderDecoStrip();
 
       // Canvas に画像を描画
       await drawPhotoOnCanvas();
@@ -1900,6 +1906,142 @@
       editorState.currentFilter = filterKey;
       renderFilterStrip();
       await drawPhotoOnCanvas();
+    }
+
+    // ===== デコ（スタンプ配置）機能 =====
+    const DECO_ITEMS = [
+      { id: 'glasses1', emoji: '🕶️', label: 'サングラス', free: true },
+      { id: 'glasses2', emoji: '👓', label: 'メガネ', free: true },
+      { id: 'hat1', emoji: '🎩', label: 'シルクハット', free: true },
+      { id: 'hat2', emoji: '👑', label: '王冠', free: true },
+      { id: 'cat', emoji: '🐱', label: '猫耳', free: true },
+      { id: 'rabbit', emoji: '🐰', label: 'ウサギ耳', free: true },
+      { id: 'mustache', emoji: '🥸', label: 'ヒゲ', free: false },
+      { id: 'heart', emoji: '💖', label: 'ハート', free: false },
+      { id: 'star', emoji: '⭐', label: '星', free: false },
+      { id: 'fire', emoji: '🔥', label: '炎', free: false },
+      { id: 'angel', emoji: '😇', label: '天使', free: false },
+      { id: 'devil', emoji: '😈', label: '悪魔', free: false },
+    ];
+
+    let placedDecos = []; // [{emoji, x, y, size}]
+    let draggingDeco = null;
+
+    function renderDecoStrip() {
+      const strip = document.getElementById('deco-strip');
+      if (!strip) return;
+      let html = '<span style="color:rgba(255,255,255,0.5); font-size:11px; margin-right:8px; flex-shrink:0;">🎭 デコ:</span>';
+      for (const item of DECO_ITEMS) {
+        const premium = !item.free ? ' premium' : '';
+        html += `<div class="filter-chip${premium}" onclick="addDecoItem('${item.emoji}', ${item.free})" title="${item.label}" style="font-size:20px; min-width:44px;">${item.emoji}</div>`;
+      }
+      html += `<div class="filter-chip" onclick="clearAllDecos()" style="font-size:11px; color:#F38181;">🗑 消す</div>`;
+      strip.innerHTML = html;
+    }
+
+    function addDecoItem(emoji, isFree) {
+      if (!isFree && !editorState.isPremium) {
+        if (confirm('このデコはPro版の機能です。\nPro版を有効にしますか？（デモ: 無料で体験）')) {
+          localStorage.setItem('share_it_premium', 'true');
+          editorState.isPremium = true;
+        } else {
+          return;
+        }
+      }
+
+      // Canvasの中央付近にランダム配置
+      const canvas = document.getElementById('photo-canvas');
+      if (!canvas) return;
+      const x = 0.3 + Math.random() * 0.4; // 30%~70% の位置
+      const y = 0.2 + Math.random() * 0.3; // 20%~50% の位置
+      const size = 0.12; // Canvasの幅の12%
+
+      placedDecos.push({ emoji, x, y, size });
+      renderDecos();
+    }
+
+    function clearAllDecos() {
+      placedDecos = [];
+      renderDecos();
+    }
+
+    function renderDecos() {
+      const wrap = document.querySelector('.photo-canvas-wrap');
+      if (!wrap) return;
+
+      // 既存のデコ要素を削除
+      wrap.querySelectorAll('.deco-placed').forEach(el => el.remove());
+
+      const canvas = document.getElementById('photo-canvas');
+      if (!canvas) return;
+      const canvasRect = canvas.getBoundingClientRect();
+
+      placedDecos.forEach((deco, idx) => {
+        const el = document.createElement('div');
+        el.className = 'deco-placed';
+        const pxSize = canvasRect.width * deco.size;
+        const pxX = canvasRect.width * deco.x - pxSize / 2;
+        const pxY = canvasRect.height * deco.y - pxSize / 2;
+        el.style.cssText = `position:absolute; left:${deco.x * 100}%; top:${deco.y * 100}%; transform:translate(-50%,-50%); font-size:${pxSize}px; cursor:grab; user-select:none; z-index:10; filter:drop-shadow(0 2px 4px rgba(0,0,0,0.5));`;
+        el.textContent = deco.emoji;
+        el.setAttribute('data-idx', idx);
+
+        // ドラッグ対応
+        el.addEventListener('pointerdown', startDecoDrag);
+        wrap.appendChild(el);
+      });
+    }
+
+    function startDecoDrag(e) {
+      e.preventDefault();
+      const idx = parseInt(e.target.getAttribute('data-idx'));
+      draggingDeco = { idx, el: e.target };
+      e.target.style.cursor = 'grabbing';
+      e.target.setPointerCapture(e.pointerId);
+
+      const moveHandler = (ev) => {
+        const wrap = document.querySelector('.photo-canvas-wrap');
+        const canvas = document.getElementById('photo-canvas');
+        if (!wrap || !canvas) return;
+        const canvasRect = canvas.getBoundingClientRect();
+        const wrapRect = wrap.getBoundingClientRect();
+
+        // Canvas内の相対位置を計算
+        const relX = (ev.clientX - canvasRect.left) / canvasRect.width;
+        const relY = (ev.clientY - canvasRect.top) / canvasRect.height;
+        const clampedX = Math.max(0.05, Math.min(0.95, relX));
+        const clampedY = Math.max(0.05, Math.min(0.95, relY));
+
+        placedDecos[idx].x = clampedX;
+        placedDecos[idx].y = clampedY;
+        e.target.style.left = `${clampedX * 100}%`;
+        e.target.style.top = `${clampedY * 100}%`;
+      };
+
+      const upHandler = () => {
+        e.target.style.cursor = 'grab';
+        e.target.removeEventListener('pointermove', moveHandler);
+        e.target.removeEventListener('pointerup', upHandler);
+        draggingDeco = null;
+      };
+
+      e.target.addEventListener('pointermove', moveHandler);
+      e.target.addEventListener('pointerup', upHandler);
+    }
+
+    /**
+     * デコをCanvasに焼き込む（保存時に呼ぶ）。
+     */
+    function drawDecosOnCanvas(ctx, w, h) {
+      for (const deco of placedDecos) {
+        const fontSize = Math.floor(w * deco.size);
+        const x = w * deco.x;
+        const y = h * deco.y;
+        ctx.font = `${fontSize}px serif`;
+        ctx.textAlign = 'center';
+        ctx.textBaseline = 'middle';
+        ctx.fillText(deco.emoji, x, y);
+      }
     }
 
     /**
@@ -2185,6 +2327,9 @@
       if (editorState.currentFilter === 'glitch') applyGlitchEffect(ctx, w, h);
       if (editorState.currentFilter === 'sparkle') applySparkleEffect(ctx, w, h);
 
+      // デコを焼き込み
+      drawDecosOnCanvas(ctx, w, h);
+
       if (includeReactions) {
         drawReactionsOnImage(ctx, w, h, editorState.fileId);
       }
@@ -2228,6 +2373,9 @@
       applyPixelFilter(ctx, w, h, editorState.currentFilter);
       if (editorState.currentFilter === 'glitch') applyGlitchEffect(ctx, w, h);
       if (editorState.currentFilter === 'sparkle') applySparkleEffect(ctx, w, h);
+
+      // デコを焼き込み
+      drawDecosOnCanvas(ctx, w, h);
 
       const dataUrl = exportCanvas.toDataURL('image/jpeg', 0.92);
       const a = document.createElement('a');
@@ -2844,6 +2992,9 @@
       applyPixelFilter(ctx, w, h, editorState.currentFilter);
       if (editorState.currentFilter === 'glitch') applyGlitchEffect(ctx, w, h);
       if (editorState.currentFilter === 'sparkle') applySparkleEffect(ctx, w, h);
+
+      // デコを焼き込み
+      drawDecosOnCanvas(ctx, w, h);
 
       // スタンプ付きで保存
       await drawStamp(ctx, w, h);
