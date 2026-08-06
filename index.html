@@ -1971,6 +1971,7 @@
 
       // 既存のデコ要素を削除
       wrap.querySelectorAll('.deco-placed').forEach(el => el.remove());
+      wrap.querySelectorAll('.deco-controls').forEach(el => el.remove());
 
       const canvas = document.getElementById('photo-canvas');
       if (!canvas) return;
@@ -1980,16 +1981,50 @@
         const el = document.createElement('div');
         el.className = 'deco-placed';
         const pxSize = canvasRect.width * deco.size;
-        const pxX = canvasRect.width * deco.x - pxSize / 2;
-        const pxY = canvasRect.height * deco.y - pxSize / 2;
         el.style.cssText = `position:absolute; left:${deco.x * 100}%; top:${deco.y * 100}%; transform:translate(-50%,-50%); font-size:${pxSize}px; cursor:grab; user-select:none; z-index:10; filter:drop-shadow(0 2px 4px rgba(0,0,0,0.5));`;
         el.textContent = deco.emoji;
         el.setAttribute('data-idx', idx);
 
+        // タップでサイズ変更コントロール表示
+        el.addEventListener('click', (e) => {
+          e.stopPropagation();
+          showDecoControls(idx);
+        });
         // ドラッグ対応
         el.addEventListener('pointerdown', startDecoDrag);
         wrap.appendChild(el);
       });
+    }
+
+    function showDecoControls(idx) {
+      const wrap = document.querySelector('.photo-canvas-wrap');
+      if (!wrap) return;
+      // 既存コントロールを消す
+      wrap.querySelectorAll('.deco-controls').forEach(el => el.remove());
+
+      const deco = placedDecos[idx];
+      const ctrl = document.createElement('div');
+      ctrl.className = 'deco-controls';
+      ctrl.style.cssText = `position:absolute; left:${deco.x * 100}%; top:calc(${deco.y * 100}% + 30px); transform:translateX(-50%); display:flex; gap:4px; z-index:20; background:rgba(0,0,0,0.8); border-radius:16px; padding:4px 8px;`;
+      ctrl.innerHTML = `
+        <button onclick="resizeDeco(${idx}, -0.02)" style="width:32px;height:32px;border:none;border-radius:50%;background:rgba(255,255,255,0.2);color:#FFF;font-size:16px;cursor:pointer;">−</button>
+        <button onclick="resizeDeco(${idx}, 0.02)" style="width:32px;height:32px;border:none;border-radius:50%;background:rgba(255,255,255,0.2);color:#FFF;font-size:16px;cursor:pointer;">＋</button>
+        <button onclick="removeSingleDeco(${idx})" style="width:32px;height:32px;border:none;border-radius:50%;background:rgba(255,80,80,0.4);color:#FFF;font-size:14px;cursor:pointer;">✕</button>
+      `;
+      wrap.appendChild(ctrl);
+
+      // 3秒後に自動で消す
+      setTimeout(() => ctrl.remove(), 5000);
+    }
+
+    function resizeDeco(idx, delta) {
+      placedDecos[idx].size = Math.max(0.04, Math.min(0.4, placedDecos[idx].size + delta));
+      renderDecos();
+    }
+
+    function removeSingleDeco(idx) {
+      placedDecos.splice(idx, 1);
+      renderDecos();
     }
 
     function startDecoDrag(e) {
