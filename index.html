@@ -1968,101 +1968,74 @@
     function renderDecos() {
       const wrap = document.querySelector('.photo-canvas-wrap');
       if (!wrap) return;
-
-      // 既存のデコ要素を削除
       wrap.querySelectorAll('.deco-placed').forEach(el => el.remove());
       wrap.querySelectorAll('.deco-controls').forEach(el => el.remove());
-
       const canvas = document.getElementById('photo-canvas');
       if (!canvas) return;
       const canvasRect = canvas.getBoundingClientRect();
-
       placedDecos.forEach((deco, idx) => {
         const el = document.createElement('div');
         el.className = 'deco-placed';
         const pxSize = canvasRect.width * deco.size;
-        el.style.cssText = `position:absolute; left:${deco.x * 100}%; top:${deco.y * 100}%; transform:translate(-50%,-50%); font-size:${pxSize}px; cursor:grab; user-select:none; z-index:10; filter:drop-shadow(0 2px 4px rgba(0,0,0,0.5));`;
+        const rot = deco.rotation || 0;
+        el.style.cssText = `position:absolute; left:${deco.x * 100}%; top:${deco.y * 100}%; transform:translate(-50%,-50%) rotate(${rot}deg); font-size:${pxSize}px; cursor:grab; user-select:none; z-index:10; filter:drop-shadow(0 2px 4px rgba(0,0,0,0.5)); touch-action:none;`;
         el.textContent = deco.emoji;
         el.setAttribute('data-idx', idx);
-
-        // タップでサイズ変更コントロール表示
-        el.addEventListener('click', (e) => {
-          e.stopPropagation();
-          showDecoControls(idx);
-        });
-        // ドラッグ対応
-        el.addEventListener('pointerdown', startDecoDrag);
+        el.addEventListener('pointerdown', (e) => decoPointerDown(e, idx));
         wrap.appendChild(el);
       });
+    }
+
+    function decoPointerDown(e, idx) {
+      e.preventDefault();
+      e.stopPropagation();
+      const el = e.target;
+      el.setPointerCapture(e.pointerId);
+      const startX = e.clientX, startY = e.clientY;
+      let moved = false;
+      const moveH = (ev) => {
+        if (Math.abs(ev.clientX - startX) > 5 || Math.abs(ev.clientY - startY) > 5) moved = true;
+        if (moved) {
+          const canvas = document.getElementById('photo-canvas');
+          if (!canvas) return;
+          const r = canvas.getBoundingClientRect();
+          placedDecos[idx].x = Math.max(0.05, Math.min(0.95, (ev.clientX - r.left) / r.width));
+          placedDecos[idx].y = Math.max(0.05, Math.min(0.95, (ev.clientY - r.top) / r.height));
+          el.style.left = `${placedDecos[idx].x * 100}%`;
+          el.style.top = `${placedDecos[idx].y * 100}%`;
+        }
+      };
+      const upH = () => {
+        el.removeEventListener('pointermove', moveH);
+        el.removeEventListener('pointerup', upH);
+        if (!moved) showDecoControls(idx);
+      };
+      el.addEventListener('pointermove', moveH);
+      el.addEventListener('pointerup', upH);
     }
 
     function showDecoControls(idx) {
       const wrap = document.querySelector('.photo-canvas-wrap');
       if (!wrap) return;
-      // 既存コントロールを消す
       wrap.querySelectorAll('.deco-controls').forEach(el => el.remove());
-
       const deco = placedDecos[idx];
       const ctrl = document.createElement('div');
       ctrl.className = 'deco-controls';
-      ctrl.style.cssText = `position:absolute; left:${deco.x * 100}%; top:calc(${deco.y * 100}% + 30px); transform:translateX(-50%); display:flex; gap:4px; z-index:20; background:rgba(0,0,0,0.8); border-radius:16px; padding:4px 8px;`;
+      ctrl.style.cssText = `position:absolute; left:${deco.x * 100}%; top:calc(${deco.y * 100}% + 30px); transform:translateX(-50%); display:flex; gap:4px; z-index:20; background:rgba(0,0,0,0.85); border-radius:16px; padding:4px 6px;`;
       ctrl.innerHTML = `
-        <button onclick="resizeDeco(${idx}, -0.02)" style="width:32px;height:32px;border:none;border-radius:50%;background:rgba(255,255,255,0.2);color:#FFF;font-size:16px;cursor:pointer;">−</button>
-        <button onclick="resizeDeco(${idx}, 0.02)" style="width:32px;height:32px;border:none;border-radius:50%;background:rgba(255,255,255,0.2);color:#FFF;font-size:16px;cursor:pointer;">＋</button>
-        <button onclick="removeSingleDeco(${idx})" style="width:32px;height:32px;border:none;border-radius:50%;background:rgba(255,80,80,0.4);color:#FFF;font-size:14px;cursor:pointer;">✕</button>
+        <button onclick="resizeDeco(${idx},-0.02)" style="width:30px;height:30px;border:none;border-radius:50%;background:rgba(255,255,255,0.2);color:#FFF;font-size:14px;cursor:pointer;">−</button>
+        <button onclick="resizeDeco(${idx},0.02)" style="width:30px;height:30px;border:none;border-radius:50%;background:rgba(255,255,255,0.2);color:#FFF;font-size:14px;cursor:pointer;">＋</button>
+        <button onclick="rotateDeco(${idx},-15)" style="width:30px;height:30px;border:none;border-radius:50%;background:rgba(255,255,255,0.2);color:#FFF;font-size:12px;cursor:pointer;">↶</button>
+        <button onclick="rotateDeco(${idx},15)" style="width:30px;height:30px;border:none;border-radius:50%;background:rgba(255,255,255,0.2);color:#FFF;font-size:12px;cursor:pointer;">↷</button>
+        <button onclick="removeSingleDeco(${idx})" style="width:30px;height:30px;border:none;border-radius:50%;background:rgba(255,80,80,0.4);color:#FFF;font-size:12px;cursor:pointer;">✕</button>
       `;
       wrap.appendChild(ctrl);
-
-      // 3秒後に自動で消す
-      setTimeout(() => ctrl.remove(), 5000);
+      setTimeout(() => { if (ctrl.parentNode) ctrl.remove(); }, 6000);
     }
 
-    function resizeDeco(idx, delta) {
-      placedDecos[idx].size = Math.max(0.04, Math.min(0.4, placedDecos[idx].size + delta));
-      renderDecos();
-    }
-
-    function removeSingleDeco(idx) {
-      placedDecos.splice(idx, 1);
-      renderDecos();
-    }
-
-    function startDecoDrag(e) {
-      e.preventDefault();
-      const idx = parseInt(e.target.getAttribute('data-idx'));
-      draggingDeco = { idx, el: e.target };
-      e.target.style.cursor = 'grabbing';
-      e.target.setPointerCapture(e.pointerId);
-
-      const moveHandler = (ev) => {
-        const wrap = document.querySelector('.photo-canvas-wrap');
-        const canvas = document.getElementById('photo-canvas');
-        if (!wrap || !canvas) return;
-        const canvasRect = canvas.getBoundingClientRect();
-        const wrapRect = wrap.getBoundingClientRect();
-
-        // Canvas内の相対位置を計算
-        const relX = (ev.clientX - canvasRect.left) / canvasRect.width;
-        const relY = (ev.clientY - canvasRect.top) / canvasRect.height;
-        const clampedX = Math.max(0.05, Math.min(0.95, relX));
-        const clampedY = Math.max(0.05, Math.min(0.95, relY));
-
-        placedDecos[idx].x = clampedX;
-        placedDecos[idx].y = clampedY;
-        e.target.style.left = `${clampedX * 100}%`;
-        e.target.style.top = `${clampedY * 100}%`;
-      };
-
-      const upHandler = () => {
-        e.target.style.cursor = 'grab';
-        e.target.removeEventListener('pointermove', moveHandler);
-        e.target.removeEventListener('pointerup', upHandler);
-        draggingDeco = null;
-      };
-
-      e.target.addEventListener('pointermove', moveHandler);
-      e.target.addEventListener('pointerup', upHandler);
-    }
+    function resizeDeco(idx, delta) { placedDecos[idx].size = Math.max(0.04, Math.min(0.4, placedDecos[idx].size + delta)); renderDecos(); }
+    function rotateDeco(idx, deg) { placedDecos[idx].rotation = (placedDecos[idx].rotation || 0) + deg; renderDecos(); }
+    function removeSingleDeco(idx) { placedDecos.splice(idx, 1); renderDecos(); }
 
     /**
      * デコをCanvasに焼き込む（保存時に呼ぶ）。
@@ -2072,10 +2045,15 @@
         const fontSize = Math.floor(w * deco.size);
         const x = w * deco.x;
         const y = h * deco.y;
+        const rot = (deco.rotation || 0) * Math.PI / 180;
+        ctx.save();
+        ctx.translate(x, y);
+        ctx.rotate(rot);
         ctx.font = `${fontSize}px serif`;
         ctx.textAlign = 'center';
         ctx.textBaseline = 'middle';
-        ctx.fillText(deco.emoji, x, y);
+        ctx.fillText(deco.emoji, 0, 0);
+        ctx.restore();
       }
     }
 
